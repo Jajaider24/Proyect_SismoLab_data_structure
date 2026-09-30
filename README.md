@@ -3,7 +3,12 @@
 2. Iniciar el entorno virtual
     venv\Scripts\activate
 3.instalar dependecias
-    backend: pip install -r requirements.txt
-    frontend: npm install
+backend: 
+    pip install -r requirements.txt
+
+frontend: 
+    npm install
+
 4. correr el proyecto
-    backend :uvicorn main:app --reload
+    backend:
+    uvicorn main:app --reload
