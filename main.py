@@ -6,9 +6,18 @@ configuring CORS middleware and registering all API route modules for flight ope
 tree management, versioning, and queue processing.
 """
 
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from src.routes.avl_routes import router as avl_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 # CORS origins allowed for frontend communication
 cors_origins = [
@@ -35,3 +44,16 @@ app.add_middleware(
 )
 
 app.include_router(avl_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Registra y normaliza errores de parametros detectados por FastAPI."""
+    logging.getLogger(__name__).warning(
+        "[422] Solicitud invalida %s %s: %s", request.method, request.url.path, exc.errors()
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"status_code": 422, "message": "La solicitud contiene datos invalidos.",
+                 "errors": exc.errors()},
+    )

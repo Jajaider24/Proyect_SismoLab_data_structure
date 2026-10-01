@@ -1,38 +1,55 @@
-#LL
+"""Rotaciones AVL y reconexion de subarboles."""
+
+
+def _replace_child(parent, old_child, new_child):
+    """Reemplaza el enlace que apunta al subarbol que acaba de girar."""
+    if parent is None:
+        return
+    if parent.getLeftChild() is old_child:
+        parent.LeftChild = new_child
+    elif parent.getRightChild() is old_child:
+        parent.RightChild = new_child
+    if new_child is not None:
+        new_child.setParent(parent)
+
+
 def giroSimpleDerecha(superior):
-    # se obtiene el hijo izquierdo de superior porque es L
-    mitad = superior.getHijoIzquierdo()
-
-    # hacemos el giro a la derecha
-    # se toma como aux al hijo derecho de mitad para ponerlo luego como hijo izquierdo de superior
-    aux = mitad.getHijoDerecho()
-    # se asigna como padre del aux al superior cuando no es None
+    """Gira a la derecha y devuelve la nueva raiz del subarbol LL."""
+    if superior is None or superior.getLeftChild() is None:
+        return superior
+    # Import local: balance importa estas rotaciones y asi evitamos un ciclo.
+    from .balance import update_height
+    mitad = superior.getLeftChild()
+    aux = mitad.getRightChild()
+    parent = superior.getParent()
+    _replace_child(parent, superior, mitad)
+    mitad.RightChild = superior
+    mitad.setParent(parent)
+    superior.LeftChild = aux
+    superior.setParent(mitad)
     if aux is not None:
-        aux.setPadre(superior)
-    #se asigna como hijo derecho de mitad a superior, este es el giro
-    mitad.setHijoDerecho(superior)
-    # se asigna como hijo izquierdo de superior el hijo derecho de mitad
-    superior.setHijoIzquierdo(aux)
-    # se reasignan los padres entre mitad y y superior
-    mitad.setPadre(superior.getPadre())
-    superior.setPadre(mitad)
+        aux.setParent(superior)
+    # La altura se actualiza desde la unica implementacion del modulo balance.
+    update_height(superior)
+    update_height(mitad)
+    return mitad
 
-  # giro simple a la izquierda (cuando el desbalanceo es RR)
+
 def giroSimpleIzquierda(superior):
-    # se obtiene el hijo derecho de superior porque es R
-    mitad = superior.getHijoDerecho()
-
-    # hacemos el giro a la izquierda
-    # se toma como aux al hijo izquierdo de mitad para ponerlo luego como hijo derecho de superior
-    aux = mitad.getHijoIzquierdo()
-    # se asigna como padre del aux al superior cuando no es None
+    """Gira a la izquierda y devuelve la nueva raiz del subarbol RR."""
+    if superior is None or superior.getRightChild() is None:
+        return superior
+    from .balance import update_height
+    mitad = superior.getRightChild()
+    aux = mitad.getLeftChild()
+    parent = superior.getParent()
+    _replace_child(parent, superior, mitad)
+    mitad.LeftChild = superior
+    mitad.setParent(parent)
+    superior.RightChild = aux
+    superior.setParent(mitad)
     if aux is not None:
-        aux.setPadre(superior)
-    #se asigna como hijo izquierdo de mitad a superior, este es el giro
-    mitad.setHijoIzquierdo(superior)
-    # se asigna como hijo derecho de superior el hijo izquierdo de mitad
-    superior.setHijoDerecho(aux)
-    # se reasignan los padres entre mitad y y superior
-    mitad.setPadre(superior.getPadre())
-    superior.setPadre(mitad)
-    #revisar asignar hijo izq a la mitad y asignar al antecesor el respectivo hijo
+        aux.setParent(superior)
+    update_height(superior)
+    update_height(mitad)
+    return mitad

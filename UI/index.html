@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visualizador AVL</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main class="layout">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Estructuras de datos</p>
+        <h1>Arbol AVL</h1>
+      </div>
+      <div id="tree-status" class="status" role="status">Cargando arbol...</div>
+    </header>
+
+    <section class="controls" aria-label="Controles del arbol">
+      <form id="insert-form">
+        <label for="value-input">Nuevo valor</label>
+        <div class="control-row">
+          <input id="value-input" type="number" step="1" required>
+          <button type="submit">Insertar</button>
+          <button id="clear-button" type="button" class="secondary">Limpiar</button>
+        </div>
+      </form>
+      <p id="message" class="message" aria-live="polite"></p>
+    </section>
+
+    <section class="workspace">
+      <section class="visualization" aria-label="Visualizacion del arbol AVL">
+        <svg id="tree-canvas" role="img" aria-label="Arbol AVL"></svg>
+      </section>
+      <aside id="node-inspector" class="inspector" aria-label="Atributos del nodo seleccionado">
+        <h2>Nodo seleccionado</h2>
+        <p id="selection-hint" class="muted">Selecciona un nodo en el arbol.</p>
+        <form id="edit-form" hidden>
+          <label for="edit-identificador">Identificador</label>
+          <input id="edit-identificador" type="number" min="1" max="999999" required>
+          <label for="edit-magnitud">Magnitud</label>
+          <input id="edit-magnitud" type="number" min="-2" max="10" step="0.1" required>
+          <label for="edit-profundidad">Profundidad H</label>
+          <input id="edit-profundidad" type="number" min="0" max="700" step="0.1" required>
+          <label for="edit-fecha">Fecha y hora</label>
+          <input id="edit-fecha" type="text" required>
+          <label for="edit-revision">Revision</label>
+          <input id="edit-revision" type="text" required>
+          <label for="edit-procedencia">Procedencia</label>
+          <input id="edit-procedencia" type="text" required>
+          <label class="checkbox-label"><input id="edit-atencion" type="checkbox"> Estado de atencion</label>
+          <div class="inspector-actions">
+            <button type="submit">Guardar cambios</button>
+            <button id="delete-button" type="button" class="danger">Eliminar nodo</button>
+          </div>
+        </form>
+        <p id="edit-message" class="message" aria-live="polite"></p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
