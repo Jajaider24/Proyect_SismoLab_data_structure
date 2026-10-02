@@ -1,0 +1,5 @@
+Zona Poblada definida como atributo que pone el usuario como booleano,
+ ya que no hay una condicion en especifico que nos defina este.
+
+Insercion por tupla
+Balanceo por altura 
