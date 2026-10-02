@@ -30,6 +30,9 @@ def _same_order_values(first_node, second_node):
         and first_node.getIdentifier() == second_node.getIdentifier()
     )
 
+def _same_identifier(first_node,second_node):
+    return(first_node.getIdentifier() == second_node.getIdentifier())
+
 
 def insert_node(current_root, node):
     """Inserta ``node`` y devuelve ``(nueva_raiz, insertado)``."""
@@ -39,6 +42,8 @@ def insert_node(current_root, node):
         return node, True
     if _same_order_values(current_root, node):
         return current_root, False
+    if _same_identifier(current_root,node):
+        return current_root,False
     if left(current_root, node):
         child_root, inserted = insert_node(current_root.getLeftChild(), node)
         if inserted:
