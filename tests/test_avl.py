@@ -3,6 +3,7 @@
 import unittest
 
 from src.core.AvlTree.tree import AVL_tree
+from src.core.AvlTree.metodos.insert import left
 from src.core.node.node import Node
 
 
@@ -11,10 +12,11 @@ class TestAVL(unittest.TestCase):
         def visit(node, lower=None, upper=None):
             if node is None:
                 return 0
-            self.assertTrue(lower is None or node.getValue() > lower)
-            self.assertTrue(upper is None or node.getValue() < upper)
-            left = visit(node.getLeftChild(), lower, node.getValue())
-            right = visit(node.getRightChild(), node.getValue(), upper)
+            key = node.get_order_key()
+            self.assertTrue(lower is None or key > lower)
+            self.assertTrue(upper is None or key < upper)
+            left = visit(node.getLeftChild(), lower, key)
+            right = visit(node.getRightChild(), key, upper)
             self.assertLessEqual(abs(left - right), 1)
             self.assertEqual(node.getHeight(), 1 + max(left, right))
             if node is tree.getRoot():
@@ -52,14 +54,38 @@ class TestAVL(unittest.TestCase):
         self.assertFalse(tree.delete(999))
 
     def test_node_business_attributes_are_validated(self):
-        node = Node(7, 2.5, 100.0, "2026-09-30T18:00:00-05:00", "r1", "sensor", True)
+        node = Node(7, prioridad=2.5, magnitud=1.0, profundidad_h=100.0,
+                    fecha_hora="2026-09-30T18:00:00-05:00", revision="r1",
+                    procedencia="sensor", estado_atencion=True)
         self.assertEqual(node.to_dict()["identificador"], 7)
         with self.assertRaises(ValueError):
             Node(0)
         with self.assertRaises(ValueError):
-            Node(7, 2.55)
+            Node(7, magnitud=2.55)
         with self.assertRaises(ValueError):
-            Node(7, 2.0, 701.0)
+            Node(7, profundidad_h=701.0)
+
+    def test_left_uses_priority_magnitude_and_identifier(self):
+        current = Node(20, magnitud=4.5, profundidad_h=100.0)
+        self.assertTrue(left(current, Node(30, magnitud=2.0)))
+        self.assertTrue(left(current, Node(10, magnitud=4.5, profundidad_h=100.0)))
+        self.assertFalse(left(current, Node(30, magnitud=6.0)))
+        self.assertFalse(left(current, Node(20, magnitud=4.5, profundidad_h=100.0)))
+
+    def test_priority_is_part_of_avl_order_and_duplicate_key(self):
+        tree = AVL_tree()
+        self.assertTrue(tree.insert(Node(10, magnitud=4.5, profundidad_h=100.0)))
+        self.assertTrue(tree.insert(Node(20, magnitud=2.0)))
+        self.assertFalse(tree.insert(Node(10, magnitud=4.5, profundidad_h=100.0)))
+        self.assert_valid_avl(tree)
+
+    def test_priority_is_calculated_from_business_data(self):
+        self.assertEqual(Node(1, magnitud=6.0).getPriority(), 3)
+        self.assertEqual(Node(2, magnitud=4.5, profundidad_h=30.0,
+                              zona_poblada=True).getPriority(), 3)
+        self.assertEqual(Node(3, magnitud=4.5, profundidad_h=30.1,
+                              zona_poblada=True).getPriority(), 2)
+        self.assertEqual(Node(4, magnitud=4.4, zona_poblada=True).getPriority(), 1)
 
 
 if __name__ == "__main__":

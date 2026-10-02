@@ -16,14 +16,8 @@ class AVLTreeService:
         return self.tree.insert(node)
 
     def find_node(self, identifier):
-        """Busca iterativamente para no recorrer ramas que no corresponden."""
-        current = self.tree.getRoot()
-        while current is not None:
-            if identifier == current.getIdentifier():
-                return current
-            current = (current.getLeftChild() if identifier < current.getIdentifier()
-                       else current.getRightChild())
-        return None
+        """Busca por identificador aunque la clave tenga tres componentes."""
+        return self.tree._find_by_identifier(self.tree.getRoot(), identifier)
 
     def delete_node(self, identifier):
         """Elimina por identificador y deja que el AVL rebalancee ancestros."""
@@ -34,9 +28,10 @@ class AVLTreeService:
         current = self.find_node(original_identifier)
         if current is None:
             return "not_found"
-        if node.getIdentifier() != original_identifier and self.find_node(node.getIdentifier()):
+        duplicate = self.find_node(node.getIdentifier())
+        if duplicate is not None and duplicate is not current:
             return "duplicate"
-        if node.getIdentifier() == original_identifier:
+        if duplicate is current and node.get_order_key() == current.get_order_key():
             current.copy_data_from(node)
             return "updated"
         self.tree.delete(original_identifier)
@@ -68,6 +63,7 @@ class AVLTreeService:
             return {
                 "id": str(node.getIdentifier()),
                 "value": node.getIdentifier(),
+                "priority": node.getPriority(),
                 "height": node.getHeight(),
                 "balance_factor": balance_factor(node),
                 "children": children,

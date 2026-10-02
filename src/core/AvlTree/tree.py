@@ -1,6 +1,7 @@
 """Estructura publica del arbol AVL."""
 
-from src.core.AvlTree.metodos.insert import delete_node, insert_node
+from src.core.AvlTree.metodos.eliminar import delete_node
+from src.core.AvlTree.metodos.insert import insert_node
 
 
 class AVL_tree:
@@ -22,8 +23,20 @@ class AVL_tree:
         return inserted
 
     def delete(self, identifier):
-        """Elimina por identificador y rebalancea todos los ancestros."""
-        self.root, deleted = delete_node(self.root, identifier)
+        """Elimina el primer nodo con el identificador indicado."""
+        target = self._find_by_identifier(self.root, identifier)
+        if target is None:
+            return False
+        self.root, deleted = delete_node(self.root, target)
         if self.root is not None:
             self.root.setParent(None)
         return deleted
+
+    def _find_by_identifier(self, current_root, identifier):
+        """Busca por todo el arbol porque el orden ya no depende solo del id."""
+        if current_root is None:
+            return None
+        if current_root.getIdentifier() == identifier:
+            return current_root
+        return (self._find_by_identifier(current_root.getLeftChild(), identifier)
+                or self._find_by_identifier(current_root.getRightChild(), identifier))

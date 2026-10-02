@@ -3,6 +3,13 @@ import { renderTree } from "./components/treeRenderer.js";
 
 const form = document.querySelector("#insert-form");
 const input = document.querySelector("#value-input");
+const createMagnitud = document.querySelector("#create-magnitud");
+const createProfundidad = document.querySelector("#create-profundidad");
+const createFecha = document.querySelector("#create-fecha");
+const createRevision = document.querySelector("#create-revision");
+const createProcedencia = document.querySelector("#create-procedencia");
+const createZona = document.querySelector("#create-zona");
+const createAtencion = document.querySelector("#create-atencion");
 const clearButton = document.querySelector("#clear-button");
 const message = document.querySelector("#message");
 const status = document.querySelector("#tree-status");
@@ -29,12 +36,14 @@ function selectNode(nodeData) {
   selectionHint.hidden = true;
   editForm.hidden = false;
   document.querySelector("#edit-identificador").value = attributes.identificador;
+  document.querySelector("#edit-prioridad").value = attributes.prioridad;
   document.querySelector("#edit-magnitud").value = attributes.magnitud;
   document.querySelector("#edit-profundidad").value = attributes.profundidad_h;
   document.querySelector("#edit-fecha").value = attributes.fecha_hora;
   document.querySelector("#edit-revision").value = attributes.revision;
   document.querySelector("#edit-procedencia").value = attributes.procedencia;
   document.querySelector("#edit-atencion").checked = attributes.estado_atencion;
+  document.querySelector("#edit-zona").checked = attributes.zona_poblada;
   editMessage.textContent = `Nodo ${selectedIdentifier} seleccionado.`;
 }
 
@@ -47,19 +56,40 @@ function readEditForm() {
     revision: document.querySelector("#edit-revision").value,
     procedencia: document.querySelector("#edit-procedencia").value,
     estado_atencion: document.querySelector("#edit-atencion").checked,
+    zona_poblada: document.querySelector("#edit-zona").checked,
+  };
+}
+
+function readCreateForm() {
+  return {
+    identificador: Number(input.value),
+    magnitud: Number(createMagnitud.value),
+    profundidad_h: Number(createProfundidad.value),
+    fecha_hora: createFecha.value || null,
+    revision: createRevision.value,
+    procedencia: createProcedencia.value,
+    estado_atencion: createAtencion.checked,
+    zona_poblada: createZona.checked,
   };
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const value = Number(input.value);
-  if (!Number.isInteger(value)) return showMessage("Ingresa un entero valido.", true);
+  if (!Number.isInteger(value)) return showMessage("Ingresa un identificador entero valido.", true);
   try {
-    const data = await treeService.insert(value);
+    const data = await treeService.create(readCreateForm());
     renderTree(data.tree, selectNode);
     status.textContent = `${data.values.length} nodos`;
     showMessage(`Valor ${value} insertado correctamente.`);
     input.value = "";
+    createMagnitud.value = "";
+    createProfundidad.value = "";
+    createFecha.value = "";
+    createRevision.value = "";
+    createProcedencia.value = "";
+    createZona.checked = false;
+    createAtencion.checked = false;
   } catch (error) {
     console.error(`[${error.status || 500}] ${error.message}`);
     showMessage(`[${error.status || 500}] ${error.message}`, true);

@@ -18,9 +18,16 @@
 
     <section class="controls" aria-label="Controles del arbol">
       <form id="insert-form">
-        <label for="value-input">Nuevo valor</label>
+        <label for="value-input">Identificador</label>
         <div class="control-row">
           <input id="value-input" type="number" step="1" required>
+          <input id="create-magnitud" type="number" min="-2" max="10" step="0.1" placeholder="Magnitud" required>
+          <input id="create-profundidad" type="number" min="0" max="700" step="0.1" placeholder="Profundidad H" required>
+          <input id="create-fecha" type="text" placeholder="Fecha y hora (opcional)">
+          <input id="create-revision" type="text" placeholder="Revision" required>
+          <input id="create-procedencia" type="text" placeholder="Procedencia" required>
+          <label class="checkbox-label"><input id="create-zona" type="checkbox"> Zona poblada</label>
+          <label class="checkbox-label"><input id="create-atencion" type="checkbox"> Estado de atencion</label>
           <button type="submit">Insertar</button>
           <button id="clear-button" type="button" class="secondary">Limpiar</button>
         </div>
@@ -38,6 +45,8 @@
         <form id="edit-form" hidden>
           <label for="edit-identificador">Identificador</label>
           <input id="edit-identificador" type="number" min="1" max="999999" required>
+          <label for="edit-prioridad">Prioridad</label>
+          <input id="edit-prioridad" type="number" readonly>
           <label for="edit-magnitud">Magnitud</label>
           <input id="edit-magnitud" type="number" min="-2" max="10" step="0.1" required>
           <label for="edit-profundidad">Profundidad H</label>
@@ -49,6 +58,7 @@
           <label for="edit-procedencia">Procedencia</label>
           <input id="edit-procedencia" type="text" required>
           <label class="checkbox-label"><input id="edit-atencion" type="checkbox"> Estado de atencion</label>
+          <label class="checkbox-label"><input id="edit-zona" type="checkbox"> Zona poblada</label>
           <div class="inspector-actions">
             <button type="submit">Guardar cambios</button>
             <button id="delete-button" type="button" class="danger">Eliminar nodo</button>

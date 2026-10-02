@@ -1,17 +1,45 @@
-"""Insercion y eliminacion recursivas de un arbol AVL."""
+"""Insercion recursiva de nodos en el arbol AVL."""
 
 from src.core.AvlTree.metodos.balance import check_balance, update_height
 
 
+def left(current_node, node_to_insert):
+    """Indica si el nodo nuevo debe ubicarse a la izquierda.
+
+    El orden se decide por prioridad, despues por magnitud y finalmente por
+    identificador. De esta forma todos los nodos tienen una posicion unica.
+    """
+    current_key = (
+        current_node.getPriority(),
+        current_node.getMagnitude(),
+        current_node.getIdentifier(),
+    )
+    insert_key = (
+        node_to_insert.getPriority(),
+        node_to_insert.getMagnitude(),
+        node_to_insert.getIdentifier(),
+    )
+    return insert_key < current_key
+
+
+def _same_order_values(first_node, second_node):
+    """Evita insertar dos nodos con los tres criterios identicos."""
+    return (
+        first_node.getPriority() == second_node.getPriority()
+        and first_node.getMagnitude() == second_node.getMagnitude()
+        and first_node.getIdentifier() == second_node.getIdentifier()
+    )
+
+
 def insert_node(current_root, node):
-    """Inserta por identificador y retorna ``(raiz, insertado)``."""
+    """Inserta ``node`` y devuelve ``(nueva_raiz, insertado)``."""
     if current_root is None:
         node.setParent(None)
         node.setHeight(1)
         return node, True
-    if node.getIdentifier() == current_root.getIdentifier():
+    if _same_order_values(current_root, node):
         return current_root, False
-    if node.getIdentifier() < current_root.getIdentifier():
+    if left(current_root, node):
         child_root, inserted = insert_node(current_root.getLeftChild(), node)
         if inserted:
             current_root.LeftChild = child_root
@@ -22,54 +50,6 @@ def insert_node(current_root, node):
             current_root.RightChild = child_root
             child_root.setParent(current_root)
     if not inserted:
-        return current_root, False
-    update_height(current_root)
-    return check_balance(current_root), True
-
-
-def _minimum(node):
-    """Encuentra el menor identificador de un subarbol derecho."""
-    while node.getLeftChild() is not None:
-        node = node.getLeftChild()
-    return node
-
-
-def delete_node(current_root, identifier):
-    """Elimina un identificador y retorna ``(raiz, eliminado)``."""
-    if current_root is None:
-        return None, False
-    if identifier < current_root.getIdentifier():
-        child_root, deleted = delete_node(current_root.getLeftChild(), identifier)
-        current_root.LeftChild = child_root
-        if child_root is not None:
-            child_root.setParent(current_root)
-    elif identifier > current_root.getIdentifier():
-        child_root, deleted = delete_node(current_root.getRightChild(), identifier)
-        current_root.RightChild = child_root
-        if child_root is not None:
-            child_root.setParent(current_root)
-    else:
-        # Con cero o un hijo, el hijo ocupa directamente el lugar del nodo.
-        if current_root.getLeftChild() is None:
-            replacement = current_root.getRightChild()
-            if replacement is not None:
-                replacement.setParent(current_root.getParent())
-            return replacement, True
-        if current_root.getRightChild() is None:
-            replacement = current_root.getLeftChild()
-            if replacement is not None:
-                replacement.setParent(current_root.getParent())
-            return replacement, True
-        # Con dos hijos, copiamos el sucesor y eliminamos su nodo original.
-        successor = _minimum(current_root.getRightChild())
-        current_root.copy_data_from(successor)
-        current_root.RightChild, deleted = delete_node(
-            current_root.getRightChild(), successor.getIdentifier()
-        )
-        if current_root.RightChild is not None:
-            current_root.RightChild.setParent(current_root)
-
-    if not deleted:
         return current_root, False
     update_height(current_root)
     return check_balance(current_root), True

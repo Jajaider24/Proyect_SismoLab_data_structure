@@ -22,6 +22,7 @@ class NodePayload(BaseModel):
     revision: str = ""
     procedencia: str = ""
     estado_atencion: bool = False
+    zona_poblada: bool = False
 
     def to_node(self):
         """Entrega el modelo de dominio, donde viven las reglas estrictas."""
