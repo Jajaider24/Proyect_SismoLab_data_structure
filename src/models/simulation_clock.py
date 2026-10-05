@@ -4,20 +4,32 @@ from datetime import datetime, timedelta, timezone
 
 
 class SimulationClock:
-	def __init__(self, current_time: datetime):
-		self.current_time = self._utc(current_time)
+    """Valida ocurrencias contra un tiempo UTC fijo o contra el tiempo actual."""
 
-	@staticmethod
-	def _utc(value):
-		if value.tzinfo is None:
-			return value.replace(tzinfo=timezone.utc)
-		return value.astimezone(timezone.utc)
+    def __init__(self, current_time: datetime | None = None):
+        """Crea un reloj fijo si recibe fecha o uno vivo si queda vacio."""
+        self.current_time = self._utc(current_time) if current_time is not None else None
 
-	def advance(self, delta: timedelta):
-		if delta.total_seconds() < 0:
-			raise ValueError("el reloj no puede retroceder")
-		self.current_time += delta
+    @staticmethod
+    def _utc(value):
+        """Normaliza una fecha naive o aware a UTC."""
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
-	def validate_occurrence(self, occurred_at: datetime):
-		if self._utc(occurred_at) > self.current_time:
-			raise ValueError("la ocurrencia no puede estar en el futuro")
+    def now(self):
+        """Devuelve el tiempo de referencia actual del reloj."""
+        return self.current_time or datetime.now(timezone.utc)
+
+    def advance(self, delta: timedelta):
+        """Avanza un reloj fijo sin permitir retrocesos."""
+        if delta.total_seconds() < 0:
+            raise ValueError("el reloj no puede retroceder")
+        if self.current_time is None:
+            self.current_time = datetime.now(timezone.utc)
+        self.current_time += delta
+
+    def validate_occurrence(self, occurred_at: datetime):
+        """Rechaza fechas de ocurrencia posteriores al tiempo de referencia."""
+        if self._utc(occurred_at) > self.now():
+            raise ValueError("la ocurrencia no puede estar en el futuro")

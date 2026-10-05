@@ -1,32 +1,35 @@
 """Casos de uso y estado del catalogo de eventos."""
 
-from src.core.AvlTree.metodos.balance import balance_factor
-from src.core.AvlTree.tree import AVL_tree
 from src.core.node.node import Node
-from src.models.event import AttentionState, Event, EventState
-from datetime import datetime, timezone
-
 from src.core.structures.queue import Queue
 from src.core.structures.stack import Stack
+from src.models.event import AttentionState, EventState
 from src.models.simulation_clock import SimulationClock
 from src.models.zone import ZoneClassifier
+from src.services.Avlservice import AVLTreeService
 from src.services.event_policies import AssociationPolicy, PriorityPolicy
 from src.services.event_presenter import EventPresenter
 
 
 class EventValidationError(ValueError):
-    """Error de datos de dominio antes de mutar el catalogo."""
+    """Error de datos de dominio detectado antes de mutar el catalogo."""
 
 
 class EventNotFound(LookupError):
-    """El identificador no existe en el estado solicitado."""
+    """Error usado cuando un identificador no existe en el estado solicitado."""
 
 
 class EventCatalog:
-    """Orquesta eventos sin mezclar su estado con la estructura AVL."""
+    """Orquesta eventos y reutiliza un servicio AVL propio para ordenarlos.
 
-    def __init__(self, zone_classifier=None, clock=None):
-        self.tree = AVL_tree()
+    El catalogo conserva el ciclo de vida de eventos en diccionarios de dominio
+    y delega la estructura balanceada a ``AVLTreeService``. Esta instancia AVL
+    es privada del catalogo y no comparte estado con la API manual ``/avl``.
+    """
+
+    def __init__(self, zone_classifier=None, clock=None, avl_service=None):
+        """Inicializa dependencias, colecciones de estado e infraestructura."""
+        self._avl = avl_service or AVLTreeService()
         self._active = {}
         self._archived = {}
         self._deleted = {}
@@ -34,10 +37,16 @@ class EventCatalog:
         self._history = Stack()
         self._pending_reports = Queue()
         self._zone_classifier = zone_classifier or ZoneClassifier()
-        self._clock = clock or SimulationClock(datetime.now(timezone.utc))
+        self._clock = clock or SimulationClock()
         self._association_policy = AssociationPolicy()
 
+    @property
+    def tree(self):
+        """Expone el arbol AVL interno para compatibilidad de bajo nivel."""
+        return self._avl.tree
+
     def _validate(self, event):
+        """Valida rangos, finitud, estacion, tiempo y revision del evento."""
         if not isinstance(event.identifier, int) or not 1 <= event.identifier <= 999999:
             raise EventValidationError("identificador debe ser un entero entre 1 y 999999.")
         if not isinstance(event.station, str) or not event.station.strip():
@@ -70,6 +79,7 @@ class EventCatalog:
             raise EventValidationError("revision debe ser positiva.")
 
     def _prepare(self, event):
+        """Copia y completa datos derivados antes de guardar un evento activo."""
         self._validate(event)
         prepared = event.copy()
         prepared.populated_zone = self._zone_classifier.is_populated(prepared.x, prepared.y)
@@ -81,6 +91,7 @@ class EventCatalog:
 
     @staticmethod
     def _node(event):
+        """Convierte un evento activo en el ``Node`` que entiende el AVL."""
         return Node(
             event.identifier,
             magnitud=event.magnitude,
@@ -93,6 +104,7 @@ class EventCatalog:
         )
 
     def _snapshot(self):
+        """Toma una copia profunda del estado de eventos para poder deshacer."""
         return {
             "active": {key: event.copy() for key, event in self._active.items()},
             "archived": {key: event.copy() for key, event in self._archived.items()},
@@ -100,38 +112,46 @@ class EventCatalog:
         }
 
     def _restore(self, snapshot):
+        """Restaura un snapshot y reconstruye el AVL desde eventos activos."""
         self._active = {key: event.copy() for key, event in snapshot["active"].items()}
         self._archived = {key: event.copy() for key, event in snapshot["archived"].items()}
         self._deleted = {key: event.copy() for key, event in snapshot["deleted"].items()}
         self._rebuild_tree()
 
     def _record(self, action):
+        """Guarda la accion y el estado previo en la pila de historial."""
         self._history.push((action, self._snapshot()))
 
     def _rebuild_tree(self):
-        self.tree = AVL_tree()
+        """Reconstruye el AVL interno a partir de los eventos activos."""
         self._nodes_by_id = {}
+        nodes = []
         for identifier, event in self._active.items():
             node = self._node(event)
-            self.tree.insert(node)
+            nodes.append(node)
             self._nodes_by_id[identifier] = node
+        self._avl.rebuild(nodes)
         self._sync_associations()
 
     def _sync_associations(self):
+        """Actualiza asociaciones calculadas para todos los eventos activos."""
         self._association_policy.refresh(self._active.values())
 
     def _insert_active(self, event):
+        """Inserta en el AVL el nodo derivado de un evento activo."""
         node = self._node(event)
-        if not self.tree.insert(node):
+        if not self._avl.insert_node(node):
             raise EventValidationError("no se pudo insertar la clave del evento.")
         self._nodes_by_id[event.identifier] = node
 
     def _remove_active(self, identifier):
-        if not self.tree.delete(identifier):
+        """Elimina del AVL el nodo de un evento activo por identificador."""
+        if not self._avl.delete_node(identifier):
             raise EventNotFound(identifier)
         self._nodes_by_id.pop(identifier, None)
 
     def create(self, event, initial_revision=True):
+        """Crea un evento activo, lo inserta en AVL y devuelve una copia."""
         prepared = self._prepare(event)
         if initial_revision:
             prepared.revision = 1
@@ -146,6 +166,7 @@ class EventCatalog:
         return self.get(identifier)
 
     def get(self, identifier):
+        """Obtiene una copia de un evento activo, archivado o eliminado."""
         if identifier in self._active:
             return self._active[identifier].copy()
         if identifier in self._archived:
@@ -155,6 +176,7 @@ class EventCatalog:
         raise EventNotFound(identifier)
 
     def update(self, identifier, event):
+        """Actualiza un evento activo conservando su identificador original."""
         current = self._active.get(identifier)
         if current is None:
             raise EventNotFound(identifier)
@@ -172,15 +194,17 @@ class EventCatalog:
         return self.get(identifier)
 
     def review(self, identifier):
+        """Marca un evento activo como revisado por atencion humana."""
         current = self._active.get(identifier)
         if current is None:
             raise EventNotFound(identifier)
         self._record("review")
         current.attention = AttentionState.REVIEWED
-        self._sync_associations()
+        self._rebuild_tree()
         return self.get(identifier)
 
     def delete(self, identifier):
+        """Mueve un evento activo a eliminados y lo retira del AVL."""
         current = self._active.get(identifier)
         if current is None:
             raise EventNotFound(identifier)
@@ -193,12 +217,14 @@ class EventCatalog:
         return current.copy()
 
     def archive_branch(self, identifier):
+        """Archiva el subarbol AVL que nace en el identificador indicado."""
         root = self._nodes_by_id.get(identifier)
         if root is None:
             raise EventNotFound(identifier)
         identifiers = []
 
         def collect(node):
+            """Acumula identificadores de un subarbol por recorrido pre-order."""
             if node is None:
                 return
             identifiers.append(node.getIdentifier())
@@ -216,6 +242,7 @@ class EventCatalog:
         return [self.get(event_id) for event_id in identifiers]
 
     def process_report(self, report):
+        """Aplica reglas de version para crear, confirmar o actualizar reportes."""
         self._validate(report)
         if report.identifier in self._deleted:
             return {"status": "rejected_deleted", "event": self.get(report.identifier)}
@@ -250,22 +277,34 @@ class EventCatalog:
         return {"status": "updated", "event": self.get(report.identifier)}
 
     def enqueue_report(self, report):
+        """Agrega un reporte a la cola pendiente de procesamiento."""
         self._pending_reports.enqueue(report)
 
     def process_pending_reports(self):
+        """Procesa todos los reportes pendientes en orden FIFO."""
         results = []
         while self._pending_reports:
             results.append(self.process_report(self._pending_reports.dequeue()))
         return results
 
     def undo(self):
+        """Restaura la ultima accion registrada y devuelve metricas actuales."""
         if not self._history:
             raise EventNotFound("no hay acciones para deshacer")
         _action, snapshot = self._history.pop()
         self._restore(snapshot)
         return self.metrics()
 
+    def history_count(self):
+        """Devuelve cuantas acciones pueden deshacerse actualmente."""
+        return len(self._history)
+
+    def pending_reports_count(self):
+        """Devuelve cuantos reportes quedan en la cola de procesamiento."""
+        return len(self._pending_reports)
+
     def metrics(self):
+        """Calcula conteos de estado, prioridad critica y atencion pendiente."""
         events = list(self._active.values())
         return {
             "active": len(events),
@@ -276,45 +315,32 @@ class EventCatalog:
         }
 
     def tree_data(self):
-        def serialize(node):
-            if node is None:
-                return None
+        """Serializa el AVL de eventos activos con datos de dominio completos."""
+        def event_dict_for(node):
+            """Obtiene la representacion JSON del evento asociado a un nodo."""
             event = self._active[node.getIdentifier()]
-            children = [child for child in (
-                serialize(node.getLeftChild()), serialize(node.getRightChild())
-            ) if child is not None]
-            return {
-                "id": str(event.identifier),
-                "value": event.identifier,
-                "priority": event.priority,
-                "height": node.getHeight(),
-                "balance_factor": balance_factor(node),
-                "children": children,
-                "event": self.as_dict(event),
-                "attributes": self.as_dict(event),
-            }
+            return self.as_dict(event)
 
-        return serialize(self.tree.getRoot())
+        def event_extra_for(node):
+            """Agrega el alias ``event`` esperado por la respuesta de eventos."""
+            return {"event": event_dict_for(node)}
+
+        return self._avl.serialize_tree(
+            attributes_factory=event_dict_for,
+            extra_factory=event_extra_for,
+        )
 
     @staticmethod
     def as_dict(event):
+        """Convierte un evento de dominio en el contrato JSON de la API."""
         return EventPresenter.as_dict(event)
 
     def response(self, identifier=None):
+        """Construye la respuesta comun con evento opcional, arbol y metricas."""
         event = self.get(identifier) if identifier is not None else None
-        values = []
-
-        def collect(node):
-            if node is None:
-                return
-            collect(node.getLeftChild())
-            values.append(node.getIdentifier())
-            collect(node.getRightChild())
-
-        collect(self.tree.getRoot())
         return {
             "event": self.as_dict(event) if event else None,
             "tree": self.tree_data(),
-            "values": values,
+            "values": self._avl.get_values(),
             "metrics": self.metrics(),
         }

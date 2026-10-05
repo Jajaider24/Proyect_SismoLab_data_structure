@@ -5,6 +5,7 @@ from src.core.node.metodos.validaciones import (
     validate_decimal,
     validate_identifier,
 )
+from src.core.node.metodos.priority import calculate_attention_priority
 
 
 class Node:
@@ -13,6 +14,7 @@ class Node:
     def __init__(self, identificador, prioridad=None, magnitud=0.0, profundidad_h=0.0,
                  fecha_hora=None, revision="", procedencia="",
                  estado_atencion=False, zona_poblada=False):
+        """Valida datos de negocio e inicializa enlaces internos del AVL."""
         # Validamos antes de guardar para que ningun nodo invalido entre al AVL.
         validate_identifier(identificador)
         validate_decimal("magnitud", magnitud, -2.0, 10.0)
@@ -71,6 +73,7 @@ class Node:
         self.identificador = value
 
     def getIdentifier(self):
+        """Devuelve el identificador canonico del nodo."""
         return self.identificador
 
     def getPriority(self):
@@ -93,49 +96,51 @@ class Node:
         self.prioridad = self.calculate_priority()
 
     def calculate_priority(self):
-        """Calcula prioridad 1, 2 o 3 usando las reglas de atencion."""
-        high_magnitude = self.magnitud >= 6.0
-        populated_high_risk = (
-            self.magnitud >= 4.5
-            and self.profundidad_h <= 30.0
-            and self.zona_poblada
+        """Calcula prioridad 1, 2 o 3 usando la regla compartida del AVL."""
+        return calculate_attention_priority(
+            self.magnitud,
+            self.profundidad_h,
+            self.zona_poblada,
         )
-        if high_magnitude or populated_high_risk:
-            return 3
-        if self.magnitud >= 4.5:
-            return 2
-        return 1
 
     def get_order_key(self):
         """Devuelve la clave completa usada por insercion y eliminacion."""
         return (self.prioridad, self.magnitud, self.identificador)
 
     def getParent(self):
+        """Devuelve el padre actual del nodo dentro del AVL."""
         return self.parent
 
     def setParent(self, parent):
+        """Asigna el padre actual del nodo dentro del AVL."""
         self.parent = parent
 
     def getLeftChild(self):
+        """Devuelve el hijo izquierdo del nodo."""
         return self.LeftChild
 
     def setLeftChild(self, left_child):
+        """Asigna el hijo izquierdo y sincroniza su padre."""
         self.LeftChild = left_child
         if left_child is not None:
             left_child.setParent(self)
 
     def getRightChild(self):
+        """Devuelve el hijo derecho del nodo."""
         return self.RightChild
 
     def setRightChild(self, right_child):
+        """Asigna el hijo derecho y sincroniza su padre."""
         self.RightChild = right_child
         if right_child is not None:
             right_child.setParent(self)
 
     def getHeight(self):
+        """Devuelve la altura AVL almacenada en el nodo."""
         return self.height
 
     def setHeight(self, height):
+        """Actualiza la altura AVL almacenada en el nodo."""
         self.height = height
 
     def to_dict(self):

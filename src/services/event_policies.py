@@ -3,21 +3,23 @@
 from datetime import timedelta
 from math import hypot
 
+from src.core.node.metodos.priority import calculate_attention_priority
+
 
 class PriorityPolicy:
+    """Expone la prioridad de atencion usada por eventos y nodos AVL."""
+
     @staticmethod
     def calculate(magnitude, depth_km, populated_zone):
-        if magnitude >= 6.0:
-            return 3
-        if magnitude >= 4.5:
-            return 3 if depth_km <= 30.0 and populated_zone else 2
-        return 1
+        """Devuelve prioridad 1, 2 o 3 desde datos sismicos ya validados."""
+        return calculate_attention_priority(magnitude, depth_km, populated_zone)
 
 
 class AssociationPolicy:
-    """Asocia eventos cercanos en tiempo, espacio y estación."""
+    """Relaciona eventos cercanos en tiempo, espacio y estacion."""
 
     def refresh(self, events):
+        """Recalcula asociaciones mutuas entre todos los eventos recibidos."""
         for event in events:
             event.associations.clear()
         events = list(events)

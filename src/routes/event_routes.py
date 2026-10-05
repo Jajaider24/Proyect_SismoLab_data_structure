@@ -1,19 +1,20 @@
-"""API de eventos, reportes y ciclo de vida historico."""
+"""Rutas HTTP de eventos, reportes y ciclo de vida historico."""
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
+from src.controllers import event_controller
 from src.models.event import Event
-from src.services.event_catalog import EventCatalog, EventNotFound, EventValidationError
 
 
 router = APIRouter(prefix="/events", tags=["Events"])
-event_catalog = EventCatalog()
 
 
 class EventPayload(BaseModel):
+    """Contrato HTTP con los datos necesarios para crear o reportar eventos."""
+
     identifier: int = Field(ge=1, le=999999)
     magnitude: float = Field(ge=-2, le=10)
     depth_km: float = Field(ge=0, le=700)
@@ -24,6 +25,7 @@ class EventPayload(BaseModel):
     revision: int = Field(default=1, ge=1)
 
     def to_event(self):
+        """Convierte el payload validado por FastAPI en un evento de dominio."""
         return Event(
             identifier=self.identifier,
             magnitude=self.magnitude,
@@ -36,102 +38,67 @@ class EventPayload(BaseModel):
         )
 
 
-def _error(error):
-    if isinstance(error, EventNotFound):
-        raise HTTPException(status_code=404, detail="El evento no existe.") from error
-    raise HTTPException(status_code=409, detail=str(error)) from error
-
-
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_event(payload: EventPayload):
-    try:
-        return event_catalog.response(event_catalog.create(payload.to_event()).identifier)
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Crea un evento y devuelve el arbol AVL de eventos actualizado."""
+    return event_controller.create_event(payload)
 
 
 @router.get("/tree")
 def get_event_tree():
-    return event_catalog.response()
+    """Consulta la jerarquia AVL de eventos activos."""
+    return event_controller.get_event_tree()
 
 
 @router.get("/history")
 def get_event_history():
-    return {"actions": len(event_catalog._history), "metrics": event_catalog.metrics()}
+    """Consulta conteos de historial y metricas del catalogo."""
+    return event_controller.get_event_history()
 
 
 @router.get("/{identifier}")
 def get_event(identifier: int):
-    try:
-        return event_catalog.response(identifier)
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Consulta un evento por identificador."""
+    return event_controller.get_event(identifier)
 
 
 @router.put("/{identifier}")
 def update_event(identifier: int, payload: EventPayload):
-    try:
-        event = event_catalog.update(identifier, payload.to_event())
-        return event_catalog.response(event.identifier)
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Actualiza los datos editables de un evento activo."""
+    return event_controller.update_event(identifier, payload)
 
 
 @router.post("/{identifier}/review")
 def review_event(identifier: int):
-    try:
-        event = event_catalog.review(identifier)
-        return event_catalog.response(event.identifier)
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Marca un evento activo como revisado."""
+    return event_controller.review_event(identifier)
 
 
 @router.delete("/{identifier}")
 def delete_event(identifier: int):
-    try:
-        event = event_catalog.delete(identifier)
-        return event_catalog.response(event.identifier)
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Elimina logicamente un evento activo."""
+    return event_controller.delete_event(identifier)
 
 
 @router.post("/{identifier}/archive")
 def archive_event_branch(identifier: int):
-    try:
-        event_catalog.archive_branch(identifier)
-        return event_catalog.response()
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Archiva la rama AVL que inicia en el evento indicado."""
+    return event_controller.archive_event_branch(identifier)
 
 
 @router.post("/undo")
 def undo_event_action():
-    try:
-        return event_catalog.undo()
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Deshace la ultima accion registrada en el catalogo."""
+    return event_controller.undo_event_action()
 
 
 @router.post("/reports")
 def process_event_report(payload: EventPayload):
-    try:
-        event_catalog.enqueue_report(payload.to_event())
-        return {"status": "queued", "pending_reports": len(event_catalog._pending_reports)}
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
+    """Encola un reporte para procesarlo posteriormente."""
+    return event_controller.enqueue_event_report(payload)
 
 
 @router.post("/reports/process")
 def process_pending_event_reports():
-    try:
-        results = event_catalog.process_pending_reports()
-        for result in results:
-            result["event"] = event_catalog.as_dict(result["event"])
-        return {
-            "status": "processed",
-            "results": results,
-            "data": event_catalog.response(),
-        }
-    except (EventNotFound, EventValidationError) as error:
-        _error(error)
-
+    """Procesa todos los reportes pendientes en orden de llegada."""
+    return event_controller.process_pending_event_reports()
