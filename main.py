@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from src.routes.avl_routes import router as avl_router
+from src.routes.event_routes import router as event_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(avl_router)
+app.include_router(event_router)
 
 
 @app.exception_handler(RequestValidationError)

@@ -21,13 +21,15 @@ const selectionHint = document.querySelector("#selection-hint");
 const editMessage = document.querySelector("#edit-message");
 const deleteButton = document.querySelector("#delete-button");
 const reviewButton = document.querySelector("#review-button");
+const archiveButton = document.querySelector("#archive-button");
+const undoButton = document.querySelector("#undo-button");
+const lookupForm = document.querySelector("#lookup-form");
+const lookupId = document.querySelector("#lookup-id");
 const activityList = document.querySelector("#activity-list");
 const eventList = document.querySelector("#event-list");
-const metadataKey = "sismolab-event-context";
 let selectedIdentifier = null;
 let currentData = { values: [], tree: null };
 let activity = JSON.parse(localStorage.getItem("sismolab-activity") || "[]");
-let localMetadata = JSON.parse(localStorage.getItem(metadataKey) || "{}");
 
 function showMessage(text, isError = false) {
   message.textContent = text;
@@ -41,6 +43,13 @@ function setConnection(online) {
   status.textContent = online
     ? `${currentData.values.length} eventos activos`
     : "Backend no disponible";
+}
+
+function setBusy(element, busy) {
+  element?.querySelectorAll("button, input").forEach((control) => {
+    control.disabled = busy;
+  });
+  element?.classList.toggle("is-busy", busy);
 }
 
 function addActivity(label, detail, isError = false) {
@@ -71,24 +80,33 @@ function renderActivity() {
 
 function renderMetrics(data) {
   const attributes = flattenTree(data.tree).map((node) => node.attributes);
-  document.querySelector("#metric-total").textContent = attributes.length;
+  document.querySelector("#metric-total").textContent =
+    data.metrics?.active ?? attributes.length;
   document.querySelector("#metric-priority").textContent = attributes.filter(
-    (item) => item.prioridad === 3,
+    (item) => item.priority === 3,
   ).length;
-  document.querySelector("#metric-pending").textContent = attributes.filter(
-    (item) => item.revision !== "Revisado",
-  ).length;
+  document.querySelector("#metric-pending").textContent =
+    data.metrics?.pending ??
+    attributes.filter((item) => item.attention === "pending").length;
   document.querySelector("#metric-height").textContent = data.tree?.height || 0;
   document.querySelector("#list-count").textContent =
     `${attributes.length} registro${attributes.length === 1 ? "" : "s"}`;
-  eventList.innerHTML = attributes.length
-    ? attributes
-        .map(
-          (item) =>
-            `<div class="event-row"><div class="event-main"><strong class="event-id">#${item.identificador}</strong><span class="event-meta">M ${item.magnitud.toFixed(1)} · ${item.procedencia || "Sin procedencia"} · ${item.revision || "Pendiente"}</span></div><span class="event-priority priority-${item.prioridad}">P${item.prioridad}</span></div>`,
-        )
-        .join("")
-    : '<p class="muted">No hay eventos activos.</p>';
+  eventList.replaceChildren();
+  if (!attributes.length) {
+    eventList.innerHTML = '<p class="muted">No hay eventos activos.</p>';
+    return;
+  }
+  attributes.forEach((item) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "event-row";
+    row.dataset.identifier = item.identificador;
+    row.innerHTML = `<span class="event-main"><strong class="event-id"></strong><span class="event-meta"></span></span><span class="event-priority priority-${item.priority}">P${item.priority}</span>`;
+    row.querySelector(".event-id").textContent = `#${item.identificador}`;
+    row.querySelector(".event-meta").textContent =
+      `M ${Number(item.magnitude).toFixed(1)} · ${item.station || "Sin estación"} · ${item.attention === "reviewed" ? "Revisado" : "Pendiente"}`;
+    eventList.append(row);
+  });
 }
 
 function flattenTree(tree, result = []) {
@@ -96,15 +114,6 @@ function flattenTree(tree, result = []) {
   result.push(tree);
   tree.children?.forEach((child) => flattenTree(child, result));
   return result;
-}
-
-function saveMetadata(identifier, source) {
-  localMetadata[identifier] = {
-    estacion: source.estacion || "",
-    latitud: source.latitud || "",
-    longitud: source.longitud || "",
-  };
-  localStorage.setItem(metadataKey, JSON.stringify(localMetadata));
 }
 
 async function refresh() {
@@ -118,57 +127,63 @@ async function refresh() {
 function selectNode(nodeData) {
   selectedIdentifier = nodeData.attributes.identificador;
   const attributes = nodeData.attributes;
-  const metadata = localMetadata[attributes.identificador] || {};
   selectionHint.hidden = true;
   editForm.hidden = false;
   document.querySelector("#edit-priority-badge").hidden = false;
   document.querySelector("#edit-priority-badge").textContent =
-    `P${attributes.prioridad}`;
+    `P${attributes.priority}`;
   document.querySelector("#selected-id-label").textContent =
     `#${attributes.identificador}`;
   document.querySelector("#edit-identificador").value =
     attributes.identificador;
-  document.querySelector("#edit-prioridad").value = attributes.prioridad;
-  document.querySelector("#edit-magnitud").value = attributes.magnitud;
-  document.querySelector("#edit-profundidad").value = attributes.profundidad_h;
+  document.querySelector("#edit-prioridad").value = attributes.priority;
+  document.querySelector("#edit-magnitud").value = attributes.magnitude;
+  document.querySelector("#edit-profundidad").value = attributes.depth_km;
   document.querySelector("#edit-fecha").value =
-    attributes.fecha_hora?.slice(0, 16) || "";
+    attributes.occurred_at?.slice(0, 16) || "";
   document.querySelector("#edit-revision").value = attributes.revision;
-  document.querySelector("#edit-procedencia").value = attributes.procedencia;
-  document.querySelector("#edit-atencion").checked = attributes.estado_atencion;
-  document.querySelector("#edit-zona").checked = attributes.zona_poblada;
-  document.querySelector("#edit-estacion").value = metadata.estacion;
-  document.querySelector("#edit-latitud").value = metadata.latitud;
-  document.querySelector("#edit-longitud").value = metadata.longitud;
+  document.querySelector("#edit-procedencia").value = attributes.station;
+  document.querySelector("#edit-atencion").checked =
+    attributes.attention === "pending";
+  document.querySelector("#edit-zona").checked = attributes.populated_zone;
+  document.querySelector("#edit-estacion").value = attributes.station || "";
+  document.querySelector("#edit-latitud").value = attributes.latitude ?? "";
+  document.querySelector("#edit-longitud").value = attributes.longitude ?? "";
   editMessage.textContent = `Nodo ${selectedIdentifier} seleccionado.`;
+}
+
+function findNode(tree, identifier) {
+  if (!tree) return null;
+  if (tree.attributes.identificador === identifier) return tree;
+  for (const child of tree.children || []) {
+    const found = findNode(child, identifier);
+    if (found) return found;
+  }
+  return null;
 }
 
 function readEditForm() {
   return {
-    identificador: Number(document.querySelector("#edit-identificador").value),
-    magnitud: Number(document.querySelector("#edit-magnitud").value),
-    profundidad_h: Number(document.querySelector("#edit-profundidad").value),
-    fecha_hora: document.querySelector("#edit-fecha").value,
-    revision: document.querySelector("#edit-revision").value,
-    procedencia: document.querySelector("#edit-procedencia").value,
-    estado_atencion: document.querySelector("#edit-atencion").checked,
-    zona_poblada: document.querySelector("#edit-zona").checked,
+    identifier: Number(document.querySelector("#edit-identificador").value),
+    magnitude: Number(document.querySelector("#edit-magnitud").value),
+    depth_km: Number(document.querySelector("#edit-profundidad").value),
+    latitude: Number(document.querySelector("#edit-latitud").value),
+    longitude: Number(document.querySelector("#edit-longitud").value),
+    occurred_at: document.querySelector("#edit-fecha").value,
+    station: document.querySelector("#edit-estacion").value,
   };
 }
 
 function readCreateForm() {
   return {
-    identificador: Number(input.value),
-    magnitud: Number(createMagnitud.value),
-    profundidad_h: Number(createProfundidad.value),
-    fecha_hora: createFecha.value || null,
-    revision: createRevision.value,
-    procedencia: createProcedencia.value,
-    estado_atencion: createAtencion.checked,
-    zona_poblada: createZona.checked,
-    estacion: createEstacion.value,
-    latitud: createLatitud.value,
-    longitud: createLongitud.value,
+    identifier: Number(input.value),
+    magnitude: Number(createMagnitud.value),
+    depth_km: Number(createProfundidad.value),
+    latitude: Number(createLatitud.value),
+    longitude: Number(createLongitud.value),
+    occurred_at: createFecha.value,
+    station: createEstacion.value || createProcedencia.value,
+    revision: Number(createRevision.value || 1),
   };
 }
 
@@ -177,13 +192,13 @@ form.addEventListener("submit", async (event) => {
   const value = Number(input.value);
   if (!Number.isInteger(value))
     return showMessage("Ingresa un identificador entero valido.", true);
+  setBusy(form, true);
   try {
     const data = await treeService.create(readCreateForm());
     renderTree(data.tree, selectNode);
     currentData = data;
     renderMetrics(data);
     setConnection(true);
-    saveMetadata(value, readCreateForm());
     addActivity("Evento registrado", `#${value} añadido al AVL`);
     showMessage(`Evento #${value} registrado correctamente.`);
     input.value = "";
@@ -200,42 +215,42 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
     console.error(`[${error.status || 500}] ${error.message}`);
     showMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    setBusy(form, false);
   }
 });
 
 editForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (selectedIdentifier === null) return;
+  setBusy(editForm, true);
   try {
     const data = await treeService.update(selectedIdentifier, readEditForm());
     renderTree(data.tree, selectNode);
     currentData = data;
     renderMetrics(data);
-    saveMetadata(readEditForm().identificador, {
-      estacion: document.querySelector("#edit-estacion").value,
-      latitud: document.querySelector("#edit-latitud").value,
-      longitud: document.querySelector("#edit-longitud").value,
-    });
     setConnection(true);
     addActivity("Evento actualizado", `#${selectedIdentifier} corregido`);
     editMessage.textContent = "Cambios guardados.";
-    selectedIdentifier = readEditForm().identificador;
+    selectedIdentifier = readEditForm().identifier;
   } catch (error) {
     console.error(`[${error.status || 500}] ${error.message}`);
     editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  } finally {
+    setBusy(editForm, false);
   }
 });
 
 deleteButton.addEventListener("click", async () => {
   if (selectedIdentifier === null) return;
+  if (!window.confirm(`¿Eliminar el evento #${selectedIdentifier}?`)) return;
+  setBusy(editForm, true);
   try {
     const data = await treeService.delete(selectedIdentifier);
     renderTree(data.tree, selectNode);
     currentData = data;
     renderMetrics(data);
     setConnection(true);
-    delete localMetadata[selectedIdentifier];
-    localStorage.setItem(metadataKey, JSON.stringify(localMetadata));
     addActivity("Evento eliminado", `#${selectedIdentifier} retirado del AVL`);
     editForm.hidden = true;
     document.querySelector("#edit-priority-badge").hidden = true;
@@ -245,29 +260,90 @@ deleteButton.addEventListener("click", async () => {
   } catch (error) {
     console.error(`[${error.status || 500}] ${error.message}`);
     editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  } finally {
+    setBusy(editForm, false);
   }
 });
 
-clearButton.addEventListener("click", async () => {
-  try {
-    await treeService.clear();
-    await refresh();
-    localMetadata = {};
-    localStorage.removeItem(metadataKey);
-    addActivity("Índice reiniciado", "Todos los eventos fueron eliminados");
-    showMessage("Arbol reiniciado.");
-  } catch (error) {
-    console.error(`[${error.status || 500}] ${error.message}`);
-    showMessage(`[${error.status || 500}] ${error.message}`, true);
-  }
+clearButton.addEventListener("click", () => {
+  form.reset();
+  createRevision.value = "1";
+  showMessage("Formulario limpio.");
 });
 
 reviewButton.addEventListener("click", async () => {
   if (selectedIdentifier === null) return;
-  document.querySelector("#edit-revision").value = "Revisado";
-  editForm.dispatchEvent(
-    new Event("submit", { bubbles: true, cancelable: true }),
-  );
+  setBusy(editForm, true);
+  try {
+    const data = await treeService.review(selectedIdentifier);
+    renderTree(data.tree, selectNode);
+    currentData = data;
+    renderMetrics(data);
+    setConnection(true);
+    addActivity(
+      "Evento revisado",
+      `#${selectedIdentifier} marcado como revisado`,
+    );
+    editMessage.textContent = "Evento marcado como revisado.";
+  } catch (error) {
+    editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  } finally {
+    setBusy(editForm, false);
+  }
+});
+
+archiveButton.addEventListener("click", async () => {
+  if (selectedIdentifier === null) return;
+  if (!window.confirm(`¿Archivar la rama desde #${selectedIdentifier}?`))
+    return;
+  setBusy(editForm, true);
+  try {
+    const data = await treeService.archive(selectedIdentifier);
+    currentData = data;
+    renderTree(data.tree, selectNode);
+    renderMetrics(data);
+    setConnection(true);
+    addActivity("Rama archivada", `Desde #${selectedIdentifier}`);
+    editForm.hidden = true;
+    selectionHint.hidden = false;
+    selectedIdentifier = null;
+  } catch (error) {
+    editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  } finally {
+    setBusy(editForm, false);
+  }
+});
+
+eventList.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-identifier]");
+  if (!row) return;
+  const node = findNode(currentData.tree, Number(row.dataset.identifier));
+  if (node) selectNode(node);
+});
+
+lookupForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const identifier = Number(lookupId.value);
+  try {
+    const data = await treeService.get(identifier);
+    const node = findNode(data.tree, identifier);
+    if (node) selectNode(node);
+    else
+      editMessage.textContent = `Evento #${identifier} está ${data.event.state}.`;
+  } catch (error) {
+    editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  }
+});
+
+undoButton.addEventListener("click", async () => {
+  try {
+    const data = await treeService.undo();
+    await refresh();
+    addActivity("Acción deshecha", "Catálogo restaurado");
+    editMessage.textContent = "Última acción deshecha.";
+  } catch (error) {
+    editMessage.textContent = `[${error.status || 500}] ${error.message}`;
+  }
 });
 
 document.querySelector("#clear-activity").addEventListener("click", () => {

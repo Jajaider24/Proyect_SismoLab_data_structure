@@ -22,7 +22,7 @@
           <span id="connection-dot" class="connection-dot"></span>
           <div>
             <strong id="tree-status" role="status">Conectando...</strong
-            ><span>API AVL · memoria activa</span>
+            ><span>API de eventos · catálogo activo</span>
           </div>
         </div>
       </header>
@@ -93,7 +93,10 @@
                   placeholder="0.0"
               /></label>
               <label
-                >Fecha y hora<input id="create-fecha" type="datetime-local"
+                >Fecha y hora *<input
+                  id="create-fecha"
+                  type="datetime-local"
+                  required
               /></label>
             </div>
           </div>
@@ -101,10 +104,9 @@
             <h3>Origen y contexto</h3>
             <div class="form-grid form-grid-5">
               <label
-                >Procedencia *<input
+                >Fuente / procedencia<input
                   id="create-procedencia"
                   type="text"
-                  required
                   placeholder="Estación o fuente"
               /></label>
               <label
@@ -116,27 +118,30 @@
                   placeholder="1"
               /></label>
               <label
-                >Estación<input
+                >Estación *<input
                   id="create-estacion"
                   type="text"
+                  required
                   placeholder="Código de estación"
               /></label>
               <label
-                >Latitud<input
+                >Latitud *<input
                   id="create-latitud"
                   type="number"
                   min="-90"
                   max="90"
                   step="0.0001"
+                  required
                   placeholder="-90 a 90"
               /></label>
               <label
-                >Longitud<input
+                >Longitud *<input
                   id="create-longitud"
                   type="number"
                   min="-180"
                   max="180"
                   step="0.0001"
+                  required
                   placeholder="-180 a 180"
               /></label>
             </div>
@@ -144,12 +149,12 @@
           <div class="form-footer">
             <div class="switches">
               <label class="checkbox-label"
-                ><input id="create-zona" type="checkbox" /><span
-                  >Zona poblada</span
+                ><input id="create-zona" type="checkbox" disabled /><span
+                  >Zona poblada · calculada</span
                 ></label
               ><label class="checkbox-label"
-                ><input id="create-atencion" type="checkbox" /><span
-                  >Requiere atención</span
+                ><input id="create-atencion" type="checkbox" disabled /><span
+                  >Pendiente al crear</span
                 ></label
               >
             </div>
@@ -199,6 +204,18 @@
               <p class="section-kicker">Ficha operativa</p>
               <h2>Evento seleccionado</h2>
             </div>
+            <form id="lookup-form" class="lookup-form">
+              <input
+                id="lookup-id"
+                type="number"
+                min="1"
+                max="999999"
+                placeholder="ID"
+                aria-label="Identificador a consultar"
+                required
+              />
+              <button type="submit" class="secondary">Consultar</button>
+            </form>
             <span id="edit-priority-badge" class="priority-badge" hidden
               >P1</span
             >
@@ -218,6 +235,7 @@
                   min="1"
                   max="999999"
                   required
+                  readonly
               /></label>
               <label
                 >Prioridad<input id="edit-prioridad" type="number" readonly
@@ -247,12 +265,18 @@
                   required
               /></label>
               <label
-                >Revisión<input id="edit-revision" type="text" required
+                >Revisión<input
+                  id="edit-revision"
+                  type="text"
+                  required
+                  readonly
               /></label>
               <label
                 >Procedencia<input id="edit-procedencia" type="text" required
               /></label>
-              <label>Estación<input id="edit-estacion" type="text" /></label>
+              <label
+                >Estación<input id="edit-estacion" type="text" required
+              /></label>
               <label
                 >Latitud<input
                   id="edit-latitud"
@@ -260,6 +284,7 @@
                   min="-90"
                   max="90"
                   step="0.0001"
+                  required
               /></label>
               <label
                 >Longitud<input
@@ -268,16 +293,17 @@
                   min="-180"
                   max="180"
                   step="0.0001"
+                  required
               /></label>
             </div>
             <div class="switches inspector-switches">
               <label class="checkbox-label"
-                ><input id="edit-atencion" type="checkbox" /><span
-                  >Requiere atención</span
+                ><input id="edit-atencion" type="checkbox" disabled /><span
+                  >Pendiente / revisado</span
                 ></label
               ><label class="checkbox-label"
-                ><input id="edit-zona" type="checkbox" /><span
-                  >Zona poblada</span
+                ><input id="edit-zona" type="checkbox" disabled /><span
+                  >Zona poblada · calculada</span
                 ></label
               >
             </div>
@@ -285,6 +311,8 @@
               <button type="submit">Guardar cambios</button
               ><button id="review-button" type="button" class="review">
                 Marcar como revisado</button
+              ><button id="archive-button" type="button" class="secondary">
+                Archivar rama</button
               ><button id="delete-button" type="button" class="danger">
                 Eliminar evento
               </button>
@@ -321,6 +349,15 @@
               aria-label="Limpiar historial"
             >
               ×
+            </button>
+            <button
+              id="undo-button"
+              class="icon-button"
+              type="button"
+              title="Deshacer última acción"
+              aria-label="Deshacer última acción"
+            >
+              ↶
             </button>
           </div>
           <div id="activity-list" class="activity-list">

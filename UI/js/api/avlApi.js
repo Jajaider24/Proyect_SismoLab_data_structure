@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000/avl";
+const API_BASE_URL = "http://localhost:8000/events";
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -7,7 +7,9 @@ async function request(path, options = {}) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.detail || payload.message || "La solicitud fallo.");
+    const error = new Error(
+      payload.detail || payload.message || "La solicitud fallo.",
+    );
     error.status = response.status;
     throw error;
   }
@@ -16,11 +18,25 @@ async function request(path, options = {}) {
 
 export const avlApi = {
   getTree: () => request("/tree"),
-  insert: (value) => request(`/insert/${encodeURIComponent(value)}`, { method: "POST" }),
-  create: (node) => request("/nodes", { method: "POST", body: JSON.stringify(node) }),
-  update: (identifier, node) => request(`/nodes/${encodeURIComponent(identifier)}`, {
-    method: "PUT", body: JSON.stringify(node),
-  }),
-  delete: (identifier) => request(`/nodes/${encodeURIComponent(identifier)}`, { method: "DELETE" }),
-  clear: () => request("/tree", { method: "DELETE" }),
+  get: (identifier) => request(`/${encodeURIComponent(identifier)}`),
+  insert: (event) =>
+    request("", { method: "POST", body: JSON.stringify(event) }),
+  create: (event) =>
+    request("", { method: "POST", body: JSON.stringify(event) }),
+  update: (identifier, event) =>
+    request(`/${encodeURIComponent(identifier)}`, {
+      method: "PUT",
+      body: JSON.stringify(event),
+    }),
+  review: (identifier) =>
+    request(`/${encodeURIComponent(identifier)}/review`, {
+      method: "POST",
+    }),
+  delete: (identifier) =>
+    request(`/${encodeURIComponent(identifier)}`, { method: "DELETE" }),
+  archive: (identifier) =>
+    request(`/${encodeURIComponent(identifier)}/archive`, {
+      method: "POST",
+    }),
+  undo: () => request("/undo", { method: "POST" }),
 };

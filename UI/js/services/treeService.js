@@ -1,10 +1,13 @@
 import { avlApi } from "../api/avlApi.js";
 
 export const treeService = {
-  load: async () => (await avlApi.getTree()).data,
-  insert: async (value) => (await avlApi.insert(value)).data,
-  create: async (node) => (await avlApi.create(node)).data,
-  update: async (identifier, node) => (await avlApi.update(identifier, node)).data,
-  delete: async (identifier) => (await avlApi.delete(identifier)).data,
-  clear: async () => (await avlApi.clear()).data,
+  load: async () => avlApi.getTree(),
+  get: async (identifier) => avlApi.get(identifier),
+  insert: async (event) => avlApi.insert(event),
+  create: async (event) => avlApi.create(event),
+  update: async (identifier, event) => avlApi.update(identifier, event),
+  review: async (identifier) => avlApi.review(identifier),
+  delete: async (identifier) => avlApi.delete(identifier),
+  archive: async (identifier) => avlApi.archive(identifier),
+  undo: async () => avlApi.undo(),
 };

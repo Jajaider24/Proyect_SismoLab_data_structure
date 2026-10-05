@@ -54,7 +54,7 @@ export function renderTree(treeData, onSelect = () => {}) {
   groups
     .append("circle")
     .attr("r", 24)
-    .attr("class", (d) => `priority-${d.data.attributes.prioridad || 1}`);
+    .attr("class", (d) => `priority-${d.data.attributes.priority || 1}`);
   groups
     .append("text")
     .attr("y", 5)
