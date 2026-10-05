@@ -10,4 +10,6 @@ export const treeService = {
   delete: async (identifier) => avlApi.delete(identifier),
   archive: async (identifier) => avlApi.archive(identifier),
   undo: async () => avlApi.undo(),
+  enqueueReport: async (report) => avlApi.enqueueReport(report),
+  processReports: async () => avlApi.processReports(),
 };

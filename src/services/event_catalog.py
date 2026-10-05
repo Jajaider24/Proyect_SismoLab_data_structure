@@ -4,7 +4,11 @@ from src.core.AvlTree.metodos.balance import balance_factor
 from src.core.AvlTree.tree import AVL_tree
 from src.core.node.node import Node
 from src.models.event import AttentionState, Event, EventState
-from src.models.event_key import EventKey
+from datetime import datetime, timezone
+
+from src.core.structures.queue import Queue
+from src.core.structures.stack import Stack
+from src.models.simulation_clock import SimulationClock
 from src.models.zone import ZoneClassifier
 from src.services.event_policies import AssociationPolicy, PriorityPolicy
 from src.services.event_presenter import EventPresenter
@@ -21,14 +25,16 @@ class EventNotFound(LookupError):
 class EventCatalog:
     """Orquesta eventos sin mezclar su estado con la estructura AVL."""
 
-    def __init__(self, zone_classifier=None):
+    def __init__(self, zone_classifier=None, clock=None):
         self.tree = AVL_tree()
         self._active = {}
         self._archived = {}
         self._deleted = {}
         self._nodes_by_id = {}
-        self._history = []
+        self._history = Stack()
+        self._pending_reports = Queue()
         self._zone_classifier = zone_classifier or ZoneClassifier()
+        self._clock = clock or SimulationClock(datetime.now(timezone.utc))
         self._association_policy = AssociationPolicy()
 
     def _validate(self, event):
@@ -40,19 +46,33 @@ class EventCatalog:
             raise EventValidationError("magnitud fuera de rango.")
         if not 0.0 <= event.depth_km <= 700.0:
             raise EventValidationError("profundidad fuera de rango.")
-        if not -90.0 <= event.latitude <= 90.0:
-            raise EventValidationError("latitud fuera de rango.")
-        if not -180.0 <= event.longitude <= 180.0:
-            raise EventValidationError("longitud fuera de rango.")
+        if not 0.0 <= event.x <= 1000.0:
+            raise EventValidationError("x debe estar entre 0 y 1000 km.")
+        if not 0.0 <= event.y <= 1000.0:
+            raise EventValidationError("y debe estar entre 0 y 1000 km.")
+        for name, value in (
+            ("magnitud", event.magnitude),
+            ("profundidad", event.depth_km),
+            ("x", event.x),
+            ("y", event.y),
+        ):
+            text = str(value).lower()
+            if "nan" in text or "inf" in text:
+                raise EventValidationError(f"{name} debe ser finito.")
+            if "." in text and len(text.split(".", 1)[1]) > 1:
+                raise EventValidationError(f"{name} solo puede tener un decimal.")
+        event.normalize_time()
+        try:
+            self._clock.validate_occurrence(event.occurred_at)
+        except ValueError as error:
+            raise EventValidationError(str(error)) from error
         if event.revision < 1:
             raise EventValidationError("revision debe ser positiva.")
 
     def _prepare(self, event):
         self._validate(event)
         prepared = event.copy()
-        prepared.populated_zone = self._zone_classifier.is_populated(
-            prepared.latitude, prepared.longitude
-        )
+        prepared.populated_zone = self._zone_classifier.is_populated(prepared.x, prepared.y)
         prepared.priority = PriorityPolicy.calculate(
             prepared.magnitude, prepared.depth_km, prepared.populated_zone
         )
@@ -86,7 +106,7 @@ class EventCatalog:
         self._rebuild_tree()
 
     def _record(self, action):
-        self._history.append((action, self._snapshot()))
+        self._history.push((action, self._snapshot()))
 
     def _rebuild_tree(self):
         self.tree = AVL_tree()
@@ -100,15 +120,29 @@ class EventCatalog:
     def _sync_associations(self):
         self._association_policy.refresh(self._active.values())
 
-    def create(self, event):
+    def _insert_active(self, event):
+        node = self._node(event)
+        if not self.tree.insert(node):
+            raise EventValidationError("no se pudo insertar la clave del evento.")
+        self._nodes_by_id[event.identifier] = node
+
+    def _remove_active(self, identifier):
+        if not self.tree.delete(identifier):
+            raise EventNotFound(identifier)
+        self._nodes_by_id.pop(identifier, None)
+
+    def create(self, event, initial_revision=True):
         prepared = self._prepare(event)
+        if initial_revision:
+            prepared.revision = 1
         identifier = prepared.identifier
         if identifier in self._active or identifier in self._archived or identifier in self._deleted:
             raise EventValidationError("el identificador ya existe en el catalogo.")
         self._record("create")
         prepared.accepted_stations.add(prepared.station)
         self._active[identifier] = prepared
-        self._rebuild_tree()
+        self._insert_active(prepared)
+        self._sync_associations()
         return self.get(identifier)
 
     def get(self, identifier):
@@ -131,8 +165,10 @@ class EventCatalog:
         prepared.revision = current.revision + 1
         prepared.attention = AttentionState.PENDING
         prepared.accepted_stations = set(current.accepted_stations)
+        self._remove_active(identifier)
         self._active[identifier] = prepared
-        self._rebuild_tree()
+        self._insert_active(prepared)
+        self._sync_associations()
         return self.get(identifier)
 
     def review(self, identifier):
@@ -141,7 +177,7 @@ class EventCatalog:
             raise EventNotFound(identifier)
         self._record("review")
         current.attention = AttentionState.REVIEWED
-        self._rebuild_tree()
+        self._sync_associations()
         return self.get(identifier)
 
     def delete(self, identifier):
@@ -150,9 +186,10 @@ class EventCatalog:
             raise EventNotFound(identifier)
         self._record("delete")
         self._active.pop(identifier)
+        self._remove_active(identifier)
         current.state = EventState.DELETED
         self._deleted[identifier] = current
-        self._rebuild_tree()
+        self._sync_associations()
         return current.copy()
 
     def archive_branch(self, identifier):
@@ -172,17 +209,22 @@ class EventCatalog:
         self._record("archive")
         for event_id in identifiers:
             event = self._active.pop(event_id)
+            self._remove_active(event_id)
             event.state = EventState.ARCHIVED
             self._archived[event_id] = event
-        self._rebuild_tree()
+        self._sync_associations()
         return [self.get(event_id) for event_id in identifiers]
 
     def process_report(self, report):
+        self._validate(report)
         if report.identifier in self._deleted:
             return {"status": "rejected_deleted", "event": self.get(report.identifier)}
         current = self._active.get(report.identifier) or self._archived.get(report.identifier)
         if current is None:
-            return {"status": "created", "event": self.create(report)}
+            return {
+                "status": "created",
+                "event": self.create(report, initial_revision=False),
+            }
         if report.revision < current.revision:
             return {"status": "stale", "event": self.get(report.identifier)}
         if report.revision == current.revision:
@@ -191,7 +233,7 @@ class EventCatalog:
             self._record("confirm")
             current.accepted_stations.add(report.station)
             if current.state == EventState.ACTIVE:
-                self._rebuild_tree()
+                self._sync_associations()
             return {"status": "confirmed", "event": self.get(report.identifier)}
         self._record("report_update")
         updated = self._prepare(report)
@@ -200,9 +242,21 @@ class EventCatalog:
         updated.attention = AttentionState.PENDING
         if current.state == EventState.ARCHIVED:
             self._archived.pop(report.identifier)
+        else:
+            self._remove_active(report.identifier)
         self._active[report.identifier] = updated
-        self._rebuild_tree()
+        self._insert_active(updated)
+        self._sync_associations()
         return {"status": "updated", "event": self.get(report.identifier)}
+
+    def enqueue_report(self, report):
+        self._pending_reports.enqueue(report)
+
+    def process_pending_reports(self):
+        results = []
+        while self._pending_reports:
+            results.append(self.process_report(self._pending_reports.dequeue()))
+        return results
 
     def undo(self):
         if not self._history:

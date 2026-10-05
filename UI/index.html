@@ -114,6 +114,7 @@
                   id="create-revision"
                   type="text"
                   required
+                  readonly
                   value="1"
                   placeholder="1"
               /></label>
@@ -125,24 +126,24 @@
                   placeholder="Código de estación"
               /></label>
               <label
-                >Latitud *<input
+                >Coordenada X (km) *<input
                   id="create-latitud"
                   type="number"
-                  min="-90"
-                  max="90"
+                  min="0"
+                  max="1000"
                   step="0.0001"
                   required
-                  placeholder="-90 a 90"
+                  placeholder="0 a 1000"
               /></label>
               <label
-                >Longitud *<input
+                >Coordenada Y (km) *<input
                   id="create-longitud"
                   type="number"
-                  min="-180"
-                  max="180"
+                  min="0"
+                  max="1000"
                   step="0.0001"
                   required
-                  placeholder="-180 a 180"
+                  placeholder="0 a 1000"
               /></label>
             </div>
           </div>
@@ -168,6 +169,88 @@
           </div>
         </form>
         <p id="message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="report-panel" aria-labelledby="report-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Flujo de estaciones</p>
+            <h2 id="report-title">Reportes pendientes</h2>
+          </div>
+          <span id="report-queue-count" class="required-note">0 en cola</span>
+        </div>
+        <form id="report-form" class="report-form">
+          <div class="form-grid form-grid-5">
+            <label
+              >ID *<input
+                id="report-id"
+                type="number"
+                min="1"
+                max="999999"
+                required
+            /></label>
+            <label
+              >Magnitud *<input
+                id="report-magnitude"
+                type="number"
+                min="-2"
+                max="10"
+                step="0.1"
+                required
+            /></label>
+            <label
+              >Profundidad *<input
+                id="report-depth"
+                type="number"
+                min="0"
+                max="700"
+                step="0.1"
+                required
+            /></label>
+            <label
+              >X (km) *<input
+                id="report-x"
+                type="number"
+                min="0"
+                max="1000"
+                step="0.1"
+                required
+            /></label>
+            <label
+              >Y (km) *<input
+                id="report-y"
+                type="number"
+                min="0"
+                max="1000"
+                step="0.1"
+                required
+            /></label>
+            <label
+              >Ocurrencia UTC *<input
+                id="report-time"
+                type="datetime-local"
+                required
+            /></label>
+            <label
+              >Estación *<input id="report-station" type="text" required
+            /></label>
+            <label
+              >Revisión *<input
+                id="report-revision"
+                type="number"
+                min="1"
+                step="1"
+                required
+            /></label>
+          </div>
+          <div class="report-actions">
+            <button type="submit">Encolar reporte</button>
+            <button id="process-reports" type="button" class="secondary">
+              Procesar cola
+            </button>
+          </div>
+        </form>
+        <p id="report-message" class="message" aria-live="polite"></p>
       </section>
 
       <section class="workspace">
@@ -278,20 +361,20 @@
                 >Estación<input id="edit-estacion" type="text" required
               /></label>
               <label
-                >Latitud<input
+                >Coordenada X (km)<input
                   id="edit-latitud"
                   type="number"
-                  min="-90"
-                  max="90"
+                  min="0"
+                  max="1000"
                   step="0.0001"
                   required
               /></label>
               <label
-                >Longitud<input
+                >Coordenada Y (km)<input
                   id="edit-longitud"
                   type="number"
-                  min="-180"
-                  max="180"
+                  min="0"
+                  max="1000"
                   step="0.0001"
                   required
               /></label>

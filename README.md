@@ -17,6 +17,7 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 - `DELETE /events/{identifier}` elimina individualmente y conserva el historico.
 - `POST /events/{identifier}/archive` archiva la rama seleccionada.
 - `POST /events/reports` procesa reportes por revision.
+- `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
 - `POST /events/undo` deshace la ultima accion.
 - `GET /events/tree` entrega el AVL, metricas y valores in-order.
 
@@ -31,6 +32,7 @@ python -m http.server 5173 --directory UI
 Luego visita `http://localhost:5173`. La UI esta separada en API, servicio,
 renderizador D3 y aplicacion, y usa el CDN de D3.js. El catalogo mantiene un
 indice auxiliar por identificador y separa el estado activo del historico.
+Las coordenadas del escenario son `x` e `y` en el rango `0..1000` km.
 
 ## Pruebas
 

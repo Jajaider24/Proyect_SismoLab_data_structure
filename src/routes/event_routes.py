@@ -17,8 +17,8 @@ class EventPayload(BaseModel):
     identifier: int = Field(ge=1, le=999999)
     magnitude: float = Field(ge=-2, le=10)
     depth_km: float = Field(ge=0, le=700)
-    latitude: float = Field(ge=-90, le=90)
-    longitude: float = Field(ge=-180, le=180)
+    x: float = Field(ge=0, le=1000)
+    y: float = Field(ge=0, le=1000)
     occurred_at: datetime
     station: str = Field(min_length=1)
     revision: int = Field(default=1, ge=1)
@@ -28,8 +28,8 @@ class EventPayload(BaseModel):
             identifier=self.identifier,
             magnitude=self.magnitude,
             depth_km=self.depth_km,
-            latitude=self.latitude,
-            longitude=self.longitude,
+            x=self.x,
+            y=self.y,
             occurred_at=self.occurred_at,
             station=self.station,
             revision=self.revision,
@@ -115,10 +115,23 @@ def undo_event_action():
 @router.post("/reports")
 def process_event_report(payload: EventPayload):
     try:
-        result = event_catalog.process_report(payload.to_event())
-        result["event"] = event_catalog.as_dict(result["event"])
-        result["data"] = event_catalog.response(result["event"]["identifier"])
-        return result
+        event_catalog.enqueue_report(payload.to_event())
+        return {"status": "queued", "pending_reports": len(event_catalog._pending_reports)}
+    except (EventNotFound, EventValidationError) as error:
+        _error(error)
+
+
+@router.post("/reports/process")
+def process_pending_event_reports():
+    try:
+        results = event_catalog.process_pending_reports()
+        for result in results:
+            result["event"] = event_catalog.as_dict(result["event"])
+        return {
+            "status": "processed",
+            "results": results,
+            "data": event_catalog.response(),
+        }
     except (EventNotFound, EventValidationError) as error:
         _error(error)
 

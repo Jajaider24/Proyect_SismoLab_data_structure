@@ -1,4 +1,4 @@
-"""Clasificacion de pertenencia a zonas pobladas."""
+"""Clasificacion de pertenencia a zonas del escenario."""
 
 from dataclasses import dataclass
 
@@ -6,15 +6,16 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Zone:
 	name: str
-	min_latitude: float
-	max_latitude: float
-	min_longitude: float
-	max_longitude: float
+	min_x: float
+	max_x: float
+	min_y: float
+	max_y: float
+	populated: bool = False
 
-	def contains(self, latitude: float, longitude: float) -> bool:
+	def contains(self, x: float, y: float) -> bool:
 		return (
-			self.min_latitude <= latitude <= self.max_latitude
-			and self.min_longitude <= longitude <= self.max_longitude
+			self.min_x <= x <= self.max_x
+			and self.min_y <= y <= self.max_y
 		)
 
 
@@ -22,5 +23,5 @@ class ZoneClassifier:
 	def __init__(self, zones=()):
 		self._zones = tuple(zones)
 
-	def is_populated(self, latitude: float, longitude: float) -> bool:
-		return any(zone.contains(latitude, longitude) for zone in self._zones)
+	def is_populated(self, x: float, y: float) -> bool:
+		return any(zone.populated for zone in self._zones if zone.contains(x, y))

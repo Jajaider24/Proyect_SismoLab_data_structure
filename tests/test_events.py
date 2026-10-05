@@ -43,10 +43,19 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(self.catalog.process_report(same)['status'], 'confirmed')
         conflict = self.event(magnitude=4.1, station="STA-3")
         self.assertEqual(self.catalog.process_report(conflict)['status'], 'conflict')
-        stale = self.event(revision=0, station="STA-4")
+        self.assertEqual(
+            self.catalog.process_report(
+                self.event(revision=2, magnitude=5.0, station="STA-5")
+            )['status'],
+            'updated',
+        )
+        stale = self.event(revision=1, station="STA-4")
         self.assertEqual(self.catalog.process_report(stale)['status'], 'stale')
-        newer = self.event(revision=2, magnitude=5.0, station="STA-5")
-        self.assertEqual(self.catalog.process_report(newer)['status'], 'updated')
+
+    def test_first_report_can_start_above_revision_one(self):
+        result = self.catalog.process_report(self.event(revision=4))
+        self.assertEqual(result['status'], 'created')
+        self.assertEqual(result['event'].revision, 4)
 
     def test_archived_event_reactivates_only_with_newer_report(self):
         self.catalog.create(self.event())

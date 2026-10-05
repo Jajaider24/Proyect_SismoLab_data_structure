@@ -1,5 +1,10 @@
-Zona Poblada definida como atributo que pone el usuario como booleano,
- ya que no hay una condicion en especifico que nos defina este.
+La zona poblada se calcula a partir de las coordenadas x/y y las zonas
+rectangulares inmutables configuradas para el escenario. Si un punto cae en
+el borde de varias zonas, basta con que una de ellas sea poblada.
 
-Insercion por tupla
-Balanceo por altura 
+La clave del AVL es la tupla (prioridad, magnitud, identificador) y se
+compara lexicograficamente. El balanceo se calcula por altura.
+
+Los reportes entran a una cola FIFO y las acciones se guardan en una pila
+LIFO para deshacer. El indice por identificador permite consultar un evento
+en tiempo promedio O(1), mientras que el AVL conserva el orden activo.

@@ -27,6 +27,10 @@ const lookupForm = document.querySelector("#lookup-form");
 const lookupId = document.querySelector("#lookup-id");
 const activityList = document.querySelector("#activity-list");
 const eventList = document.querySelector("#event-list");
+const reportForm = document.querySelector("#report-form");
+const processReportsButton = document.querySelector("#process-reports");
+const reportMessage = document.querySelector("#report-message");
+const reportQueueCount = document.querySelector("#report-queue-count");
 let selectedIdentifier = null;
 let currentData = { values: [], tree: null };
 let activity = JSON.parse(localStorage.getItem("sismolab-activity") || "[]");
@@ -34,6 +38,11 @@ let activity = JSON.parse(localStorage.getItem("sismolab-activity") || "[]");
 function showMessage(text, isError = false) {
   message.textContent = text;
   message.classList.toggle("error", isError);
+}
+
+function showReportMessage(text, isError = false) {
+  reportMessage.textContent = text;
+  reportMessage.classList.toggle("error", isError);
 }
 
 function setConnection(online) {
@@ -147,8 +156,8 @@ function selectNode(nodeData) {
     attributes.attention === "pending";
   document.querySelector("#edit-zona").checked = attributes.populated_zone;
   document.querySelector("#edit-estacion").value = attributes.station || "";
-  document.querySelector("#edit-latitud").value = attributes.latitude ?? "";
-  document.querySelector("#edit-longitud").value = attributes.longitude ?? "";
+  document.querySelector("#edit-latitud").value = attributes.x ?? "";
+  document.querySelector("#edit-longitud").value = attributes.y ?? "";
   editMessage.textContent = `Nodo ${selectedIdentifier} seleccionado.`;
 }
 
@@ -167,8 +176,8 @@ function readEditForm() {
     identifier: Number(document.querySelector("#edit-identificador").value),
     magnitude: Number(document.querySelector("#edit-magnitud").value),
     depth_km: Number(document.querySelector("#edit-profundidad").value),
-    latitude: Number(document.querySelector("#edit-latitud").value),
-    longitude: Number(document.querySelector("#edit-longitud").value),
+    x: Number(document.querySelector("#edit-latitud").value),
+    y: Number(document.querySelector("#edit-longitud").value),
     occurred_at: document.querySelector("#edit-fecha").value,
     station: document.querySelector("#edit-estacion").value,
   };
@@ -179,11 +188,24 @@ function readCreateForm() {
     identifier: Number(input.value),
     magnitude: Number(createMagnitud.value),
     depth_km: Number(createProfundidad.value),
-    latitude: Number(createLatitud.value),
-    longitude: Number(createLongitud.value),
+    x: Number(createLatitud.value),
+    y: Number(createLongitud.value),
     occurred_at: createFecha.value,
     station: createEstacion.value || createProcedencia.value,
     revision: Number(createRevision.value || 1),
+  };
+}
+
+function readReportForm() {
+  return {
+    identifier: Number(document.querySelector("#report-id").value),
+    magnitude: Number(document.querySelector("#report-magnitude").value),
+    depth_km: Number(document.querySelector("#report-depth").value),
+    x: Number(document.querySelector("#report-x").value),
+    y: Number(document.querySelector("#report-y").value),
+    occurred_at: document.querySelector("#report-time").value,
+    station: document.querySelector("#report-station").value,
+    revision: Number(document.querySelector("#report-revision").value),
   };
 }
 
@@ -217,6 +239,46 @@ form.addEventListener("submit", async (event) => {
     showMessage(`[${error.status || 500}] ${error.message}`, true);
   } finally {
     setBusy(form, false);
+  }
+});
+
+reportForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setBusy(reportForm, true);
+  try {
+    const result = await treeService.enqueueReport(readReportForm());
+    reportQueueCount.textContent = `${result.pending_reports} en cola`;
+    showReportMessage("Reporte encolado. Procésalo cuando termine la ráfaga.");
+    addActivity(
+      "Reporte recibido",
+      `#${result.pending_reports} pendiente de procesamiento`,
+    );
+    reportForm.reset();
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    setBusy(reportForm, false);
+  }
+});
+
+processReportsButton.addEventListener("click", async () => {
+  processReportsButton.disabled = true;
+  try {
+    const result = await treeService.processReports();
+    currentData = result.data;
+    renderTree(result.data.tree, selectNode);
+    renderMetrics(result.data);
+    setConnection(true);
+    reportQueueCount.textContent = "0 en cola";
+    showReportMessage(`${result.results.length} reporte(s) procesado(s).`);
+    addActivity(
+      "Reportes procesados",
+      `${result.results.length} resultado(s) aplicado(s)`,
+    );
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    processReportsButton.disabled = false;
   }
 });
 

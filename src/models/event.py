@@ -1,7 +1,7 @@
 """Entidades y valores de dominio para la gestion de eventos sismicos."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -23,8 +23,8 @@ class Event:
 	identifier: int
 	magnitude: float
 	depth_km: float
-	latitude: float
-	longitude: float
+	x: float
+	y: float
 	occurred_at: datetime
 	station: str
 	revision: int = 1
@@ -40,10 +40,16 @@ class Event:
 		return (
 			self.magnitude == other.magnitude
 			and self.depth_km == other.depth_km
-			and self.latitude == other.latitude
-			and self.longitude == other.longitude
+			and self.x == other.x
+			and self.y == other.y
 			and self.occurred_at == other.occurred_at
 		)
+
+	def normalize_time(self) -> None:
+		if self.occurred_at.tzinfo is None:
+			self.occurred_at = self.occurred_at.replace(tzinfo=timezone.utc)
+		else:
+			self.occurred_at = self.occurred_at.astimezone(timezone.utc)
 
 	def copy(self) -> "Event":
 		"""Devuelve una copia desacoplada para historial y transacciones."""
@@ -51,8 +57,8 @@ class Event:
 			identifier=self.identifier,
 			magnitude=self.magnitude,
 			depth_km=self.depth_km,
-			latitude=self.latitude,
-			longitude=self.longitude,
+			x=self.x,
+			y=self.y,
 			occurred_at=self.occurred_at,
 			station=self.station,
 			revision=self.revision,

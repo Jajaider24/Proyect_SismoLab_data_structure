@@ -25,8 +25,8 @@ class AssociationPolicy:
             for second in events[index + 1:]:
                 close_in_time = abs(first.occurred_at - second.occurred_at) <= timedelta(hours=1)
                 close_in_space = hypot(
-                    first.latitude - second.latitude,
-                    first.longitude - second.longitude,
+                    first.x - second.x,
+                    first.y - second.y,
                 ) <= 1.0
                 if close_in_time and close_in_space and first.station == second.station:
                     first.associations.add(second.identifier)

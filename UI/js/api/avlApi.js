@@ -39,4 +39,7 @@ export const avlApi = {
       method: "POST",
     }),
   undo: () => request("/undo", { method: "POST" }),
+  enqueueReport: (report) =>
+    request("/reports", { method: "POST", body: JSON.stringify(report) }),
+  processReports: () => request("/reports/process", { method: "POST" }),
 };
