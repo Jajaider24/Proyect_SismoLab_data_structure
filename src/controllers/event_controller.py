@@ -35,6 +35,24 @@ def get_event_history():
     return {"actions": event_catalog.history_count(), "metrics": event_catalog.metrics()}
 
 
+def get_event_mode():
+    return event_catalog.status()
+
+
+def set_event_mode(stress):
+    try:
+        return event_catalog.set_stress_mode(stress)
+    except EventValidationError as error:
+        _handle_event_error(error)
+
+
+def recover_event_tree():
+    try:
+        return event_catalog.recover()
+    except EventValidationError as error:
+        _handle_event_error(error)
+
+
 def get_event(identifier):
     """Busca un evento por identificador en activos, archivados o eliminados."""
     try:
@@ -94,6 +112,7 @@ def enqueue_event_report(payload):
         return {
             "status": "queued",
             "pending_reports": event_catalog.pending_reports_count(),
+            "queue": event_catalog.pending_reports(),
         }
     except (EventNotFound, EventValidationError) as error:
         _handle_event_error(error)
@@ -108,6 +127,29 @@ def process_pending_event_reports():
         return {
             "status": "processed",
             "results": results,
+            "queue": event_catalog.pending_reports(),
+            "data": event_catalog.response(),
+        }
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def process_next_event_report():
+    """Procesa un solo reporte FIFO y devuelve su traza completa."""
+    try:
+        result = event_catalog.process_next_report()
+        if result is None:
+            return {
+                "status": "idle",
+                "result": None,
+                "queue": [],
+                "data": event_catalog.response(),
+            }
+        result["event"] = event_catalog.as_dict(result["event"])
+        return {
+            "status": "processed",
+            "result": result,
+            "queue": event_catalog.pending_reports(),
             "data": event_catalog.response(),
         }
     except (EventNotFound, EventValidationError) as error:

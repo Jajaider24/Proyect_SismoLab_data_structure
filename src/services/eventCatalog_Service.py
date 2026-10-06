@@ -11,6 +11,7 @@ from src.services.eventCatalog.reports import EventReportService
 from src.services.eventCatalog.response_builder import EventResponseBuilder
 from src.services.eventCatalog.state_store import EventStateStore
 from src.services.eventCatalog.validator import EventValidator
+from src.core.AvlTree.rotation_tracker import RotationTracker
 from src.services.event_policies import AssociationPolicy, PriorityPolicy
 
 
@@ -34,6 +35,9 @@ class EventCatalog:
         self._reports = EventReportService()
         self._replicas = EventReplicaService()
         self._responses = EventResponseBuilder()
+        self._rotation_tracker = None
+        self._stress_mode = False
+        self._recovering = False
 
     @property
     def tree(self):
@@ -73,13 +77,59 @@ class EventCatalog:
         """Actualiza asociaciones calculadas para todos los eventos activos."""
         self._association_policy.refresh(self._store.active.values())
 
-    def _insert_active(self, event):
+    def _insert_active(self, event, tracker=None):
         """Inserta en el AVL el nodo derivado de un evento activo."""
-        self._avl_index.insert(event)
+        self._avl_index.insert(
+            event,
+            tracker or self._rotation_tracker,
+            rebalance=not self._stress_mode,
+        )
 
-    def _remove_active(self, identifier):
+    def _remove_active(self, identifier, tracker=None):
         """Elimina del AVL el nodo de un evento activo por identificador."""
-        self._avl_index.remove(identifier)
+        self._avl_index.remove(
+            identifier,
+            tracker or self._rotation_tracker,
+            rebalance=not self._stress_mode,
+        )
+
+    def set_stress_mode(self, enabled):
+        if self._recovering:
+            raise EventValidationError("la recuperacion esta en curso")
+        if not enabled and not self._avl_index.audit()["balanced"]:
+            raise EventValidationError("recupere el AVL antes de volver a modo normal")
+        self._stress_mode = bool(enabled)
+        return self.status()
+
+    def status(self):
+        audit = self._avl_index.audit()
+        return {
+            "mode": "stress" if self._stress_mode else "normal",
+            "recovering": self._recovering,
+            "audit": audit,
+        }
+
+    def recover(self):
+        if self._recovering:
+            raise EventValidationError("la recuperacion ya esta en curso")
+        self._recovering = True
+        try:
+            before = self._avl_index.audit()
+            result = self._avl_index.recover()
+            after = result["audit"]
+            if not after["valid_bst"] or not after["balanced"] or not after["valid_heights"]:
+                raise EventValidationError("la auditoria no confirma un AVL valido")
+            self._stress_mode = False
+            return {
+                "mode": "normal",
+                "before": before,
+                "after": after,
+                "rotations": result["rotations"],
+                "visited": result["visited"],
+                "cost": result["visited"] + len(result["rotations"]),
+            }
+        finally:
+            self._recovering = False
 
     def create(self, event, initial_revision=True):
         """Crea un evento activo, lo inserta en AVL y devuelve una copia."""
@@ -144,7 +194,18 @@ class EventCatalog:
 
     def process_report(self, report):
         """Procesa un reporte individual segun reglas de revision."""
-        return self._reports.process_report(report, self)
+        tracker = RotationTracker()
+        self._rotation_tracker = tracker
+        try:
+            with tracker:
+                result = self._reports.process_report(report, self, tracker)
+        finally:
+            self._rotation_tracker = None
+        result["rotations"] = tracker.events
+        result["report"] = self.as_dict(report)
+        result["mode"] = "stress" if self._stress_mode else "normal"
+        result["deferred"] = self._stress_mode
+        return result
 
     def enqueue_report(self, report):
         """Agrega un reporte a la cola pendiente de procesamiento."""
@@ -152,7 +213,20 @@ class EventCatalog:
 
     def process_pending_reports(self):
         """Procesa todos los reportes pendientes en orden FIFO."""
+        if self._recovering:
+            raise EventValidationError("la recuperacion esta en curso")
         return self._reports.process_pending(self)
+
+    def process_next_report(self):
+        if self._recovering:
+            raise EventValidationError("la recuperacion esta en curso")
+        result = self._reports.process_next(self)
+        if result is None:
+            return None
+        return result
+
+    def pending_reports(self):
+        return [self.as_dict(report) for report in self._reports.pending()]
 
     def find_replicas(self, identifier, radius_km, window_hours):
         """Busca eventos activos/archivados cercanos a un evento base."""

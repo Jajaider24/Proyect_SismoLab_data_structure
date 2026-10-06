@@ -8,8 +8,6 @@ const createProfundidad = document.querySelector("#create-profundidad");
 const createFecha = document.querySelector("#create-fecha");
 const createRevision = document.querySelector("#create-revision");
 const createProcedencia = document.querySelector("#create-procedencia");
-const createZona = document.querySelector("#create-zona");
-const createAtencion = document.querySelector("#create-atencion");
 const createEstacion = document.querySelector("#create-estacion");
 const createLatitud = document.querySelector("#create-latitud");
 const createLongitud = document.querySelector("#create-longitud");
@@ -31,11 +29,22 @@ const reportForm = document.querySelector("#report-form");
 const processReportsButton = document.querySelector("#process-reports");
 const reportMessage = document.querySelector("#report-message");
 const reportQueueCount = document.querySelector("#report-queue-count");
+const reportQueue = document.querySelector("#report-queue");
+const reportResults = document.querySelector("#report-results");
+const processOneReportButton = document.querySelector("#process-one-report");
+const stressStartButton = document.querySelector("#stress-start");
+const stressDelay = document.querySelector("#stress-delay");
+const stressModeButton = document.querySelector("#stress-mode");
+const recoverTreeButton = document.querySelector("#recover-tree");
+const stressStatus = document.querySelector("#stress-status");
+const stressAudit = document.querySelector("#stress-audit");
 const replicaForm = document.querySelector("#replica-form");
 const replicaResults = document.querySelector("#replica-results");
 let selectedIdentifier = null;
 let currentData = { values: [], tree: null };
 let activity = JSON.parse(localStorage.getItem("sismolab-activity") || "[]");
+let stressRunning = false;
+let stressMode = false;
 
 function showMessage(text, isError = false) {
   message.textContent = text;
@@ -133,6 +142,7 @@ async function refresh() {
   renderTree(data.tree, selectNode);
   renderMetrics(data);
   setConnection(true);
+  await refreshStressStatus();
 }
 
 function selectNode(nodeData) {
@@ -214,6 +224,81 @@ function readReportForm() {
   };
 }
 
+function renderReportQueue(queue) {
+  reportQueueCount.textContent = `${queue.length} en cola`;
+  reportQueue.replaceChildren();
+  queue.forEach((report, index) => {
+    const row = document.createElement("div");
+    row.className = "queue-row";
+    row.innerHTML =
+      '<span class="queue-order"></span><span class="report-detail"><strong></strong><span></span></span>';
+    row.querySelector(".queue-order").textContent = `#${index + 1}`;
+    row.querySelector("strong").textContent =
+      `Estación ${report.station} · Evento ${report.identifier}`;
+    row.querySelector(".report-detail span").textContent =
+      `Revisión ${report.revision} · M ${report.magnitude}`;
+    reportQueue.append(row);
+  });
+}
+
+function renderReportResult(result) {
+  if (!result) return;
+  const report = result.report || {};
+  const row = document.createElement("div");
+  row.className = "report-result";
+  const detail = document.createElement("span");
+  detail.className = "report-detail";
+  const title = document.createElement("strong");
+  title.textContent = `Estación ${report.station} · Evento ${report.identifier}`;
+  const metadata = document.createElement("span");
+  metadata.textContent = `Revisión ${report.revision} · Rotaciones: ${(result.rotations || []).join(", ") || "ninguna"}`;
+  detail.append(title, metadata);
+  const decision = document.createElement("span");
+  decision.className = "report-decision";
+  decision.textContent = result.status;
+  row.append(detail, decision);
+  reportResults.prepend(row);
+  while (reportResults.children.length > 12)
+    reportResults.lastElementChild.remove();
+}
+
+function applyReportResponse(response) {
+  if (response.data) {
+    currentData = response.data;
+    renderTree(response.data.tree, selectNode);
+    renderMetrics(response.data);
+    setConnection(true);
+  }
+  renderReportQueue(response.queue || []);
+  refreshStressStatus().catch(() => {
+    stressAudit.textContent = "No se pudo auditar el AVL";
+  });
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function paintStressStatus(statusData) {
+  stressMode = statusData.mode === "stress";
+  stressStatus.textContent = stressMode ? "Modo estrés" : "Modo normal";
+  stressModeButton.textContent = stressMode
+    ? "Volver a normal"
+    : "Activar estrés";
+  stressAudit.textContent = statusData.audit?.balanced
+    ? "AVL equilibrado"
+    : "AVL desequilibrado · requiere recuperación";
+  stressStatus.parentElement.classList.toggle("is-stress", stressMode);
+  stressStatus.parentElement.classList.toggle(
+    "is-unbalanced",
+    !statusData.audit?.balanced,
+  );
+}
+
+async function refreshStressStatus() {
+  paintStressStatus(await treeService.getMode());
+}
+
 function readReplicaForm() {
   return {
     r: Number(document.querySelector("#replica-r").value),
@@ -256,8 +341,6 @@ form.addEventListener("submit", async (event) => {
     createFecha.value = "";
     createRevision.value = "1";
     createProcedencia.value = "";
-    createZona.checked = false;
-    createAtencion.checked = false;
     createEstacion.value = "";
     createLatitud.value = "";
     createLongitud.value = "";
@@ -274,7 +357,7 @@ reportForm.addEventListener("submit", async (event) => {
   setBusy(reportForm, true);
   try {
     const result = await treeService.enqueueReport(readReportForm());
-    reportQueueCount.textContent = `${result.pending_reports} en cola`;
+    renderReportQueue(result.queue || []);
     showReportMessage("Reporte encolado. Procésalo cuando termine la ráfaga.");
     addActivity(
       "Reporte recibido",
@@ -292,11 +375,8 @@ processReportsButton.addEventListener("click", async () => {
   processReportsButton.disabled = true;
   try {
     const result = await treeService.processReports();
-    currentData = result.data;
-    renderTree(result.data.tree, selectNode);
-    renderMetrics(result.data);
-    setConnection(true);
-    reportQueueCount.textContent = "0 en cola";
+    applyReportResponse(result);
+    result.results.forEach(renderReportResult);
     showReportMessage(`${result.results.length} reporte(s) procesado(s).`);
     addActivity(
       "Reportes procesados",
@@ -306,6 +386,60 @@ processReportsButton.addEventListener("click", async () => {
     showReportMessage(`[${error.status || 500}] ${error.message}`, true);
   } finally {
     processReportsButton.disabled = false;
+  }
+});
+
+async function processOneReport() {
+  const result = await treeService.processReportStep();
+  applyReportResponse(result);
+  if (result.result) {
+    renderReportResult(result.result);
+    addActivity(
+      "Paso de estrés",
+      `${result.result.status} · #${result.result.report.identifier}`,
+    );
+    return true;
+  }
+  return false;
+}
+
+processOneReportButton.addEventListener("click", async () => {
+  processOneReportButton.disabled = true;
+  try {
+    const processed = await processOneReport();
+    showReportMessage(processed ? "Reporte procesado." : "La cola está vacía.");
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    processOneReportButton.disabled = false;
+  }
+});
+
+stressStartButton.addEventListener("click", async () => {
+  if (stressRunning) {
+    stressRunning = false;
+    stressStartButton.textContent = "Iniciar continuo";
+    return;
+  }
+  stressRunning = true;
+  stressStartButton.textContent = "Detener continuo";
+  try {
+    if (!stressMode) paintStressStatus(await treeService.setMode(true));
+    while (stressRunning) {
+      const processed = await processOneReport();
+      if (!processed) break;
+      await wait(Number(stressDelay.value) || 800);
+    }
+    showReportMessage(
+      stressRunning
+        ? "La cola está vacía."
+        : "Procesamiento continuo detenido.",
+    );
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    stressRunning = false;
+    stressStartButton.textContent = "Iniciar continuo";
   }
 });
 
@@ -327,6 +461,40 @@ replicaForm.addEventListener("submit", async (event) => {
     replicaResults.innerHTML = `<p class="muted">[${error.status || 500}] ${error.message}</p>`;
   } finally {
     setBusy(replicaForm, false);
+  }
+});
+
+stressModeButton.addEventListener("click", async () => {
+  try {
+    const next = await treeService.setMode(!stressMode);
+    paintStressStatus(next);
+    showReportMessage(
+      next.mode === "stress"
+        ? "Modo estrés activado."
+        : "Modo normal activado.",
+    );
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  }
+});
+
+recoverTreeButton.addEventListener("click", async () => {
+  stressRunning = false;
+  recoverTreeButton.disabled = true;
+  try {
+    const result = await treeService.recover();
+    await refresh();
+    showReportMessage(
+      `AVL recuperado: ${result.rotations.length} rotación(es), costo ${result.cost}.`,
+    );
+    addActivity(
+      "AVL recuperado",
+      `${result.rotations.length} rotación(es) · costo ${result.cost}`,
+    );
+  } catch (error) {
+    showReportMessage(`[${error.status || 500}] ${error.message}`, true);
+  } finally {
+    recoverTreeButton.disabled = false;
   }
 });
 

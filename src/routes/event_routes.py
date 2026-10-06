@@ -45,6 +45,10 @@ class ReplicaPayload(BaseModel):
     w: int = Field(ge=0)
 
 
+class ModePayload(BaseModel):
+    stress: bool
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_event(payload: EventPayload):
     """Crea un evento y devuelve el arbol AVL de eventos actualizado."""
@@ -61,6 +65,21 @@ def get_event_tree():
 def get_event_history():
     """Consulta conteos de historial y metricas del catalogo."""
     return event_controller.get_event_history()
+
+
+@router.get("/mode")
+def get_event_mode():
+    return event_controller.get_event_mode()
+
+
+@router.post("/mode")
+def set_event_mode(payload: ModePayload):
+    return event_controller.set_event_mode(payload.stress)
+
+
+@router.post("/recover")
+def recover_event_tree():
+    return event_controller.recover_event_tree()
 
 
 @router.get("/{identifier}")
@@ -115,3 +134,9 @@ def process_event_report(payload: EventPayload):
 def process_pending_event_reports():
     """Procesa todos los reportes pendientes en orden de llegada."""
     return event_controller.process_pending_event_reports()
+
+
+@router.post("/reports/process/step")
+def process_next_event_report():
+    """Procesa exactamente un reporte FIFO."""
+    return event_controller.process_next_event_report()

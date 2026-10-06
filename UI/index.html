@@ -245,12 +245,41 @@
           </div>
           <div class="report-actions">
             <button type="submit">Encolar reporte</button>
+            <button id="process-one-report" type="button" class="secondary">
+              Procesar un paso
+            </button>
             <button id="process-reports" type="button" class="secondary">
-              Procesar cola
+              Procesar todo
+            </button>
+            <label class="stress-delay-label"
+              >Pausa (ms)<input
+                id="stress-delay"
+                type="number"
+                min="100"
+                max="10000"
+                step="100"
+                value="800"
+            /></label>
+            <button id="stress-start" type="button" class="review">
+              Iniciar continuo
+            </button>
+            <button id="stress-mode" type="button" class="secondary">
+              Activar estrés
+            </button>
+            <button id="recover-tree" type="button" class="review">
+              Recuperar AVL
             </button>
           </div>
         </form>
         <p id="report-message" class="message" aria-live="polite"></p>
+        <div class="stress-status">
+          <strong id="stress-status">Modo normal</strong
+          ><span id="stress-audit">AVL equilibrado</span>
+        </div>
+        <div id="report-queue" class="report-queue" aria-live="polite"></div>
+        <div id="report-results" class="report-results" aria-live="polite">
+          <p class="muted">Los resultados de cada paso aparecerán aquí.</p>
+        </div>
       </section>
 
       <section class="workspace">
@@ -430,7 +459,9 @@
             </div>
             <button type="submit" class="secondary">Buscar cercanos</button>
             <div id="replica-results" class="replica-results">
-              <p class="muted">Define R y W para comparar activos y archivados.</p>
+              <p class="muted">
+                Define R y W para comparar activos y archivados.
+              </p>
             </div>
           </form>
           <p id="edit-message" class="message" aria-live="polite"></p>

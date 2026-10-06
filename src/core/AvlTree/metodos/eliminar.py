@@ -11,18 +11,18 @@ def _minimun(node):
     return node
 
 
-def delete_node(current_root, identifier):
+def delete_node(current_root, identifier, rebalance=True):
     """Elimina por clave de orden y devuelve ``(nueva_raiz, eliminado)``."""
     if current_root is None:
         return None, False
     # El llamador entrega el nodo completo para conservar los tres criterios.
     if identifier.get_order_key() < current_root.get_order_key():
-        child_root, deleted = delete_node(current_root.getLeftChild(), identifier)
+        child_root, deleted = delete_node(current_root.getLeftChild(), identifier, rebalance)
         current_root.LeftChild = child_root
         if child_root is not None:
             child_root.setParent(current_root)
     elif identifier.get_order_key() > current_root.get_order_key():
-        child_root, deleted = delete_node(current_root.getRightChild(), identifier)
+        child_root, deleted = delete_node(current_root.getRightChild(), identifier, rebalance)
         current_root.RightChild = child_root
         if child_root is not None:
             child_root.setParent(current_root)
@@ -40,7 +40,7 @@ def delete_node(current_root, identifier):
         successor = _minimun(current_root.getRightChild())
         current_root.copy_data_from(successor)
         current_root.RightChild, deleted = delete_node(
-            current_root.getRightChild(), successor
+            current_root.getRightChild(), successor, rebalance
         )
         if current_root.RightChild is not None:
             current_root.RightChild.setParent(current_root)
@@ -48,4 +48,4 @@ def delete_node(current_root, identifier):
     if not deleted:
         return current_root, False
     update_height(current_root)
-    return check_balance(current_root), True
+    return (check_balance(current_root) if rebalance else current_root), True

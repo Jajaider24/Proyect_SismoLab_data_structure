@@ -20,17 +20,23 @@ class AVLTreeService:
         """Devuelve la raiz actual del arbol administrado por el servicio."""
         return self.tree.getRoot()
 
-    def insert_node(self, node):
+    def insert_node(self, node, rebalance=True):
         """Inserta un ``Node`` y devuelve False si su identificador ya existe."""
-        return self.tree.insert(node)
+        return self.tree.insert(node, rebalance=rebalance)
 
     def find_node(self, identifier):
         """Busca por identificador aunque la clave tenga tres componentes."""
         return self.tree._find_by_identifier(self.tree.getRoot(), identifier)
 
-    def delete_node(self, identifier):
+    def delete_node(self, identifier, rebalance=True):
         """Elimina por identificador y deja que el AVL rebalancee ancestros."""
-        return self.tree.delete(identifier)
+        return self.tree.delete(identifier, rebalance=rebalance)
+
+    def audit(self):
+        return self.tree.audit()
+
+    def recover(self):
+        return self.tree.recover()
 
     def update_node(self, original_identifier, node):
         """Edita atributos; si cambia la clave, elimina e inserta de nuevo."""

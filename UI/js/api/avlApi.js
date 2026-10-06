@@ -19,8 +19,6 @@ async function request(path, options = {}) {
 export const avlApi = {
   getTree: () => request("/tree"),
   get: (identifier) => request(`/${encodeURIComponent(identifier)}`),
-  insert: (event) =>
-    request("", { method: "POST", body: JSON.stringify(event) }),
   create: (event) =>
     request("", { method: "POST", body: JSON.stringify(event) }),
   update: (identifier, event) =>
@@ -47,4 +45,12 @@ export const avlApi = {
   enqueueReport: (report) =>
     request("/reports", { method: "POST", body: JSON.stringify(report) }),
   processReports: () => request("/reports/process", { method: "POST" }),
+  processReportStep: () => request("/reports/process/step", { method: "POST" }),
+  getMode: () => request("/mode"),
+  setMode: (stress) =>
+    request("/mode", {
+      method: "POST",
+      body: JSON.stringify({ stress }),
+    }),
+  recover: () => request("/recover", { method: "POST" }),
 };

@@ -20,3 +20,7 @@ class Queue:
 
     def __len__(self):
         return len(self._items)
+
+    def items(self):
+        """Devuelve una instantanea en el mismo orden FIFO."""
+        return list(self._items)

@@ -23,10 +23,19 @@ class EventReportService:
         """Procesa todos los reportes pendientes usando la fachada recibida."""
         results = []
         while self._pending_reports:
-            results.append(self.process_report(self._pending_reports.dequeue(), catalog))
+            results.append(self.process_next(catalog))
         return results
 
-    def process_report(self, report, catalog):
+    def process_next(self, catalog):
+        """Consume exactamente un reporte y devuelve su decision."""
+        if not self._pending_reports:
+            return None
+        return catalog.process_report(self._pending_reports.dequeue())
+
+    def pending(self):
+        return self._pending_reports.items()
+
+    def process_report(self, report, catalog, tracker=None):
         """Aplica reglas de version para crear, confirmar o actualizar reportes."""
         catalog._validator.validate(report)
         if report.identifier in catalog._store.deleted:
@@ -53,9 +62,9 @@ class EventReportService:
         updated.accepted_stations.add(report.station)
         updated.attention = AttentionState.PENDING
         if current.state != EventState.ARCHIVED:
-            catalog._remove_active(report.identifier)
+            catalog._remove_active(report.identifier, tracker)
         catalog._store.reactivate(updated)
-        catalog._insert_active(updated)
+        catalog._insert_active(updated, tracker)
         catalog._sync_associations()
         return {"status": "updated", "event": catalog.get(report.identifier)}
 

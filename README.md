@@ -17,6 +17,7 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 - `DELETE /events/{identifier}` elimina individualmente y conserva el historico.
 - `POST /events/{identifier}/archive` archiva la rama seleccionada.
 - `POST /events/reports` procesa reportes por revision.
+- `POST /events/reports/process/step` procesa exactamente un reporte FIFO.
 - `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
 - `POST /events/undo` deshace la ultima accion.
 - `GET /events/tree` entrega el AVL, metricas y valores in-order.

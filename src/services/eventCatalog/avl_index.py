@@ -1,6 +1,7 @@
 """Indice AVL derivado de los eventos activos."""
 
 from src.core.node.node import Node
+from src.core.AvlTree.rotation_tracker import RotationTracker
 from src.models.event import AttentionState
 from src.services.Avlservice import AVLTreeService
 from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
@@ -45,18 +46,38 @@ class EventAvlIndex:
             self._nodes_by_id[identifier] = node
         self._avl.rebuild(nodes)
 
-    def insert(self, event):
+    def insert(self, event, tracker=None, rebalance=True):
         """Inserta en el AVL el nodo derivado de un evento activo."""
         node = self.node_from_event(event)
-        if not self._avl.insert_node(node):
+        if tracker is None:
+            with RotationTracker():
+                inserted = self._avl.insert_node(node, rebalance=rebalance)
+        else:
+            inserted = self._avl.insert_node(node, rebalance=rebalance)
+        if not inserted:
             raise EventValidationError("no se pudo insertar la clave del evento.")
         self._nodes_by_id[event.identifier] = node
 
-    def remove(self, identifier):
+    def remove(self, identifier, tracker=None, rebalance=True):
         """Elimina del AVL el nodo de un evento activo por identificador."""
-        if not self._avl.delete_node(identifier):
+        if tracker is None:
+            with RotationTracker():
+                deleted = self._avl.delete_node(identifier, rebalance=rebalance)
+        else:
+            deleted = self._avl.delete_node(identifier, rebalance=rebalance)
+        if not deleted:
             raise EventNotFound(identifier)
         self._nodes_by_id.pop(identifier, None)
+
+    def audit(self):
+        return self._avl.audit()
+
+    def recover(self):
+        result = self._avl.recover()
+        self._nodes_by_id = {
+            node.getIdentifier(): node for node in self._avl.iter_nodes_in_order()
+        }
+        return result
 
     def branch_identifiers(self, identifier):
         """Devuelve los identificadores del subarbol que nace en identifier."""

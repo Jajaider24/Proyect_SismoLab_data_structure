@@ -76,6 +76,44 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(self.catalog.get(1).associations, {2})
         self.assertEqual(self.catalog.get(2).associations, {1})
 
+    def test_stress_queue_processes_one_report_and_keeps_fifo_order(self):
+        first = self.event(identifier=20, station="STA-1")
+        second = self.event(identifier=10, station="STA-2")
+        self.catalog.enqueue_report(first)
+        self.catalog.enqueue_report(second)
+        self.assertEqual(
+            [item["identificador"] for item in self.catalog.pending_reports()], [20, 10]
+        )
+        result = self.catalog.process_next_report()
+        self.assertEqual(result["report"]["identifier"], 20)
+        self.assertEqual(result["status"], "created")
+        self.assertEqual(
+            [item["identificador"] for item in self.catalog.pending_reports()], [10]
+        )
+
+    def test_stress_mode_defers_rotations_and_recovery_preserves_order(self):
+        self.catalog.set_stress_mode(True)
+        for identifier in (1, 2, 3, 4, 5):
+            self.catalog.create(self.event(identifier=identifier))
+        before = self.catalog.status()
+        self.assertEqual(before["mode"], "stress")
+        self.assertFalse(before["audit"]["balanced"])
+        with self.assertRaises(EventValidationError):
+            self.catalog.set_stress_mode(False)
+        result = self.catalog.recover()
+        self.assertEqual(result["mode"], "normal")
+        self.assertTrue(result["after"]["balanced"])
+        self.assertTrue(result["after"]["valid_bst"])
+        self.assertEqual(self.catalog.response()["values"], [1, 2, 3, 4, 5])
+
+    def test_report_trace_contains_rotations(self):
+        self.catalog.create(self.event(identifier=50, magnitude=4.0))
+        self.catalog.create(self.event(identifier=20, magnitude=4.0))
+        self.catalog.enqueue_report(self.event(identifier=10, magnitude=4.0, revision=1))
+        result = self.catalog.process_next_report()
+        self.assertIn("rotations", result)
+        self.assertTrue(result["rotations"])
+
     def test_event_coordinates_are_saved_in_avl_node_attributes(self):
         self.catalog.create(self.event(identifier=9, x=123.4, y=567.8))
         data = self.catalog.response(9)

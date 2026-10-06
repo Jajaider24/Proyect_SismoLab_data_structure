@@ -34,7 +34,7 @@ def _same_identifier(first_node,second_node):
     return(first_node.getIdentifier() == second_node.getIdentifier())
 
 
-def insert_node(current_root, node):
+def insert_node(current_root, node, rebalance=True):
     """Inserta ``node`` y devuelve ``(nueva_raiz, insertado)``."""
     if current_root is None:
         node.setParent(None)
@@ -45,16 +45,16 @@ def insert_node(current_root, node):
     if _same_identifier(current_root,node):
         return current_root,False
     if left(current_root, node):
-        child_root, inserted = insert_node(current_root.getLeftChild(), node)
+        child_root, inserted = insert_node(current_root.getLeftChild(), node, rebalance)
         if inserted:
             current_root.LeftChild = child_root
             child_root.setParent(current_root)
     else:
-        child_root, inserted = insert_node(current_root.getRightChild(), node)
+        child_root, inserted = insert_node(current_root.getRightChild(), node, rebalance)
         if inserted:
             current_root.RightChild = child_root
             child_root.setParent(current_root)
     if not inserted:
         return current_root, False
     update_height(current_root)
-    return check_balance(current_root), True
+    return (check_balance(current_root) if rebalance else current_root), True
