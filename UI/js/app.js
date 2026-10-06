@@ -7,8 +7,10 @@ import { initWorkspace } from "./components/workspace/workspace.js";
 import { initInspector } from "./components/workspace/inspector.js";
 import { initReportConsole } from "./components/report-console/reportConsole.js";
 import { initActivity } from "./components/activity/activity.js";
-import { initAnalysis } from "./components/analysis/analysis.js";
+import { initAnalysis } from "./components/analysis/analysis.js?v=3";
 import { initViewRouter } from "./components/navigation/viewRouter.js";
+import { initScenarioManager } from "./components/scenario/scenarioManager.js";
+import { initVersionManager } from "./components/versions/versionManager.js";
 
 // Initialize UI components
 initViewRouter();
@@ -18,11 +20,16 @@ const eventForm = initEventForm();
 initWorkspace();
 initInspector();
 initAnalysis();
+const scenarioManager = initScenarioManager({ onRequestRefresh: refresh });
+initVersionManager({ onRequestRefresh: refresh });
 
 export async function refresh() {
   const data = await treeService.load();
   store.setData(data);
   await reportConsole.refreshStressStatus();
+  await scenarioManager.refresh().catch((error) => {
+    console.warn(`No se pudo actualizar el escenario: ${error.message}`);
+  });
 }
 
 const reportConsole = initReportConsole({ onRequestRefresh: refresh });

@@ -1,12 +1,25 @@
 """Controlador HTTP para el catalogo de eventos sismicos."""
 
+import os
+from pathlib import Path
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 
 from src.services.eventCatalog_Service import EventCatalog
 from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
+from src.services.eventCatalog.persistence import JsonStateRepository
+from src.models.simulation_clock import SimulationClock
 
 
-event_catalog = EventCatalog()
+state_path = Path(os.environ.get(
+    "SISMOLAB_STATE_PATH",
+    Path(__file__).resolve().parents[2] / "data" / "sismolab-state.json",
+))
+event_catalog = EventCatalog(
+    clock=SimulationClock(datetime.now(timezone.utc)),
+    repository=JsonStateRepository(state_path),
+)
 
 
 def _handle_event_error(error):
@@ -209,3 +222,57 @@ def query_costly_high_priority(depth_limit):
 
 def compare_event_structures():
     return event_catalog.compare_structures()
+
+
+def get_scenario():
+    return event_catalog.scenario()
+
+
+def update_scenario_parameters(archive_threshold_hours=None, zones=None):
+    try:
+        return event_catalog.update_parameters(archive_threshold_hours, zones)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def advance_scenario_clock(seconds):
+    try:
+        return {"clock": event_catalog.advance_clock(seconds)}
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def export_scenario_state():
+    return event_catalog.export_state()
+
+
+def load_scenario_state(payload):
+    try:
+        return event_catalog.load_state(payload)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def save_scenario_version(name):
+    try:
+        return event_catalog.save_version(name)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def list_scenario_versions():
+    return event_catalog.list_versions()
+
+
+def restore_scenario_version(name):
+    try:
+        return event_catalog.restore_version(name)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def delete_scenario_version(name):
+    try:
+        return event_catalog.delete_version(name)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)

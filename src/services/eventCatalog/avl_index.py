@@ -46,6 +46,55 @@ class EventAvlIndex:
             self._nodes_by_id[identifier] = node
         self._avl.rebuild(nodes, rebalance=rebalance)
 
+    def snapshot_topology(self):
+        """Copia la forma, altura e identificador de cada nodo AVL."""
+        def copy_node(node):
+            if node is None:
+                return None
+            return {
+                "identifier": node.getIdentifier(),
+                "height": node.getHeight(),
+                "left": copy_node(node.getLeftChild()),
+                "right": copy_node(node.getRightChild()),
+            }
+
+        return copy_node(self._avl.get_root())
+
+    def restore_topology(self, active_events, topology):
+        """Reconecta nodos desde una copia exacta sin recalcular el balance."""
+        self._nodes_by_id = {
+            identifier: self.node_from_event(event)
+            for identifier, event in active_events.items()
+        }
+        topology_ids = [branch["identifier"] for branch in self._walk(topology)]
+        if (
+            len(topology_ids) != len(set(topology_ids))
+            or set(topology_ids) != set(self._nodes_by_id)
+        ):
+            raise EventValidationError("la topologia guardada no coincide con los eventos activos.")
+
+        def connect(branch):
+            if branch is None:
+                return None
+            node = self._nodes_by_id.get(branch["identifier"])
+            if node is None:
+                raise EventValidationError("la topologia guardada referencia un evento inexistente.")
+            node.setHeight(branch["height"])
+            node.setLeftChild(connect(branch["left"]))
+            node.setRightChild(connect(branch["right"]))
+            return node
+
+        root = connect(topology)
+        self._avl.restore_root(root)
+
+    @staticmethod
+    def _walk(topology):
+        if topology is None:
+            return
+        yield topology
+        yield from EventAvlIndex._walk(topology["left"])
+        yield from EventAvlIndex._walk(topology["right"])
+
     def insert(self, event, tracker=None, rebalance=True):
         """Inserta en el AVL el nodo derivado de un evento activo."""
         node = self.node_from_event(event)

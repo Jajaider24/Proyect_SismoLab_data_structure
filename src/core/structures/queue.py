@@ -24,3 +24,7 @@ class Queue:
     def items(self):
         """Devuelve una instantanea en el mismo orden FIFO."""
         return list(self._items)
+
+    def restore(self, items):
+        """Reemplaza la cola por una secuencia conservando su orden FIFO."""
+        self._items = deque(items)

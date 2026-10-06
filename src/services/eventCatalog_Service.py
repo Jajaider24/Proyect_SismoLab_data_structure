@@ -1,10 +1,12 @@
 """Fachada principal del catalogo de eventos sismicos."""
 
 import math
+from contextlib import contextmanager
+from datetime import timedelta
 
 from src.models.event import AttentionState, EventState
 from src.models.simulation_clock import SimulationClock
-from src.models.zone import ZoneClassifier
+from src.models.zone import Zone, ZoneClassifier
 from src.services.eventCatalog.avl_index import EventAvlIndex
 from src.services.eventCatalog.performance_queries import EventPerformanceQueries
 from src.services.eventCatalog.exceptions import EventValidationError
@@ -16,6 +18,7 @@ from src.services.eventCatalog.state_store import EventStateStore
 from src.services.eventCatalog.validator import EventValidator
 from src.core.AvlTree.rotation_tracker import RotationTracker
 from src.services.event_policies import AssociationPolicy, PriorityPolicy
+from src.services.eventCatalog.state_codec import decode_snapshot, encode_snapshot
 
 
 class EventCatalog:
@@ -26,7 +29,7 @@ class EventCatalog:
     reportes y presentacion.
     """
 
-    def __init__(self, zone_classifier=None, clock=None, avl_service=None):
+    def __init__(self, zone_classifier=None, clock=None, avl_service=None, repository=None):
         """Inicializa todos los servicios internos del catalogo."""
         self._store = EventStateStore()
         self._clock = clock or SimulationClock()
@@ -42,6 +45,16 @@ class EventCatalog:
         self._rotation_tracker = None
         self._stress_mode = False
         self._recovering = False
+        self._repository = repository
+        self._versions = []
+        self._history_suspended = 0
+        self._persistence_suspended = 0
+        self._parameters = {
+            "archive_threshold_hours": 72.0,
+            "zones": list(getattr(self._zone_classifier, "zones", ())),
+        }
+        if self._repository is not None:
+            self._load_persisted_document(self._repository.load())
 
     @property
     def tree(self):
@@ -60,17 +73,83 @@ class EventCatalog:
         return prepared
 
     def _snapshot(self):
-        """Toma una copia profunda del estado de eventos para poder deshacer."""
-        return self._store.snapshot()
+        """Copia el estado operativo completo y la topologia AVL exacta."""
+        return {
+            "store": self._store.snapshot(),
+            "pending_reports": [report.copy() for report in self._reports.pending()],
+            "clock": self._clock.snapshot(),
+            "parameters": {
+                "archive_threshold_hours": self._parameters["archive_threshold_hours"],
+                "zones": list(self._parameters["zones"]),
+            },
+            "stress_mode": self._stress_mode,
+            "topology": self._avl_index.snapshot_topology(),
+            "metrics": self.metrics(),
+        }
 
     def _restore(self, snapshot):
-        """Restaura un snapshot y reconstruye estructuras derivadas."""
-        self._store.restore(snapshot)
-        self._rebuild_tree()
+        """Restaura los datos operativos sin compartir objetos mutables."""
+        self._store.restore(snapshot["store"])
+        self._reports.restore_pending(snapshot["pending_reports"])
+        self._clock.restore(snapshot["clock"])
+        self._parameters = {
+            "archive_threshold_hours": snapshot["parameters"]["archive_threshold_hours"],
+            "zones": list(snapshot["parameters"]["zones"]),
+        }
+        if hasattr(self._zone_classifier, "replace_zones"):
+            self._zone_classifier.replace_zones(self._parameters["zones"])
+        self._stress_mode = snapshot["stress_mode"]
+        self._avl_index.restore_topology(self._store.active, snapshot["topology"])
 
     def _record(self, action):
-        """Guarda la accion y el estado previo en el historial."""
-        self._history.record(action, self._snapshot())
+        """Guarda una copia aislada antes de una accion de dominio."""
+        if self._history_suspended:
+            return None
+        snapshot = self._snapshot()
+        self._history.record(action, snapshot)
+        return snapshot
+
+    @contextmanager
+    def _suspend_nested_commits(self):
+        """Agrupa mutaciones internas de un paso de cola en una accion."""
+        self._history_suspended += 1
+        self._persistence_suspended += 1
+        try:
+            yield
+        finally:
+            self._history_suspended -= 1
+            self._persistence_suspended -= 1
+
+    @staticmethod
+    def _encode_history(entries):
+        return [
+            {"action": action, "snapshot": encode_snapshot(snapshot)}
+            for action, snapshot in entries
+        ]
+
+    @staticmethod
+    def _decode_history(entries):
+        return [
+            (entry["action"], decode_snapshot(entry["snapshot"]))
+            for entry in entries
+        ]
+
+    def _load_persisted_document(self, document):
+        self._versions = document.get("versions", [])
+        if document.get("state") is None:
+            return
+        self._restore(decode_snapshot(document["state"]))
+        self._history.restore(self._decode_history(document.get("history", [])))
+
+    def _persist(self):
+        if self._repository is None or self._persistence_suspended:
+            return
+        self._repository.save({
+            "schema_version": 1,
+            "state": encode_snapshot(self._snapshot()),
+            "history": self._encode_history(self._history.export()),
+            "versions": self._versions,
+        })
 
     def _rebuild_tree(self):
         """Reconstruye el indice AVL desde eventos activos."""
@@ -114,7 +193,11 @@ class EventCatalog:
             raise EventValidationError("la recuperacion esta en curso")
         if not enabled and not self._avl_index.audit()["balanced"]:
             raise EventValidationError("recupere el AVL antes de volver a modo normal")
-        self._stress_mode = bool(enabled)
+        enabled = bool(enabled)
+        if enabled != self._stress_mode:
+            self._record("set_mode")
+            self._stress_mode = enabled
+            self._persist()
         return self.status()
 
     def status(self):
@@ -128,23 +211,29 @@ class EventCatalog:
     def recover(self):
         if self._recovering:
             raise EventValidationError("la recuperacion ya esta en curso")
+        previous_state = self._record("recover")
         self._recovering = True
         try:
-            before = self._avl_index.audit()
+            audit_before = self._avl_index.audit()
             result = self._avl_index.recover()
             after = result["audit"]
             if (not after["valid_bst"] or not after["balanced"]
                     or not after["valid_heights"] or not after["valid_depths"]):
                 raise EventValidationError("la auditoria no confirma un AVL valido")
             self._stress_mode = False
+            self._persist()
             return {
                 "mode": "normal",
-                "before": before,
+                "before": audit_before,
                 "after": after,
                 "rotations": result["rotations"],
                 "visited": result["visited"],
                 "cost": result["visited"] + len(result["rotations"]),
             }
+        except Exception:
+            self._history.pop_snapshot()
+            self._restore(previous_state)
+            raise
         finally:
             self._recovering = False
 
@@ -159,6 +248,7 @@ class EventCatalog:
         self._store.add_active(prepared)
         self._insert_active(prepared)
         self._sync_associations()
+        self._persist()
         return self.get(prepared.identifier)
 
     def get(self, identifier):
@@ -186,6 +276,7 @@ class EventCatalog:
         self._store.add_active(prepared)
         self._update_active(prepared, reinsert=reinsert)
         self._sync_associations()
+        self._persist()
         return self.get(identifier)
 
     def review(self, identifier):
@@ -194,6 +285,7 @@ class EventCatalog:
         self._record("review")
         current.attention = AttentionState.REVIEWED
         self._update_active(current, reinsert=False)
+        self._persist()
         return self.get(identifier)
 
     def delete(self, identifier):
@@ -203,6 +295,7 @@ class EventCatalog:
         event = self._store.move_active_to_deleted(identifier)
         self._remove_active(identifier)
         self._sync_associations()
+        self._persist()
         return event.copy()
 
     def archive_branch(self, identifier):
@@ -213,6 +306,7 @@ class EventCatalog:
             self._store.move_active_to_archived(event_id)
             self._remove_active(event_id)
         self._sync_associations()
+        self._persist()
         return [self.get(event_id) for event_id in identifiers]
 
     @staticmethod
@@ -233,8 +327,10 @@ class EventCatalog:
             raise EventValidationError("threshold_hours debe ser un numero positivo y finito.")
         return threshold
 
-    def preview_old_branch_archive(self, threshold_hours=72):
+    def preview_old_branch_archive(self, threshold_hours=None):
         """Previsualiza la rama que cumple los criterios de archivo antiguo."""
+        if threshold_hours is None:
+            threshold_hours = self._parameters["archive_threshold_hours"]
         threshold = self._validate_archive_threshold(threshold_hours)
         selection = self._avl_index.select_old_branch(
             self._store.active,
@@ -243,7 +339,7 @@ class EventCatalog:
         )
         return {**selection, "threshold_hours": threshold}
 
-    def archive_old_branch(self, threshold_hours=72, expected_identifiers=None):
+    def archive_old_branch(self, threshold_hours=None, expected_identifiers=None):
         """Archiva la rama previsualizada como una unica accion deshacible.
 
         Los identificadores esperados evitan ejecutar una previsualizacion
@@ -266,11 +362,160 @@ class EventCatalog:
             self._store.move_active_to_archived(event_id)
             self._remove_active(event_id)
         self._sync_associations()
+        self._persist()
         return {
             **preview,
             "archived": True,
             "archived_identifiers": fixed_identifiers,
         }
+
+    def scenario(self):
+        """Devuelve reloj, parametros, modo e indicadores vigentes."""
+        return {
+            "clock": self._clock.now().isoformat(),
+            "clock_is_fixed": self._clock.snapshot() is not None,
+            "parameters": {
+                "archive_threshold_hours": self._parameters["archive_threshold_hours"],
+                "zones": [
+                    {
+                        "name": zone.name,
+                        "min_x": zone.min_x,
+                        "max_x": zone.max_x,
+                        "min_y": zone.min_y,
+                        "max_y": zone.max_y,
+                        "populated": zone.populated,
+                    }
+                    for zone in self._parameters["zones"]
+                ],
+            },
+            "mode": "stress" if self._stress_mode else "normal",
+            "metrics": self.metrics(),
+            "pending_reports": self.pending_reports_count(),
+            "undo_actions": self.history_count(),
+        }
+
+    def update_parameters(self, archive_threshold_hours=None, zones=None):
+        """Cambia parametros del escenario como una unica accion reversible."""
+        threshold = self._parameters["archive_threshold_hours"]
+        if archive_threshold_hours is not None:
+            threshold = self._validate_archive_threshold(archive_threshold_hours)
+        next_zones = self._parameters["zones"] if zones is None else list(zones)
+        if any(not isinstance(zone, Zone) for zone in next_zones):
+            raise EventValidationError("cada zona debe cumplir el contrato de escenario.")
+        if threshold == self._parameters["archive_threshold_hours"] and next_zones == self._parameters["zones"]:
+            return self.scenario()["parameters"]
+
+        self._record("update_parameters")
+        self._parameters = {"archive_threshold_hours": threshold, "zones": next_zones}
+        if hasattr(self._zone_classifier, "replace_zones"):
+            self._zone_classifier.replace_zones(next_zones)
+        for event in self._store.active.values():
+            event.populated_zone = self._zone_classifier.is_populated(event.x, event.y)
+            event.priority = PriorityPolicy.calculate(
+                event.magnitude, event.depth_km, event.populated_zone
+            )
+        self._rebuild_tree()
+        self._persist()
+        return self.scenario()["parameters"]
+
+    def advance_clock(self, seconds):
+        """Avanza el reloj UTC y registra el avance como una accion separada."""
+        if isinstance(seconds, bool) or not isinstance(seconds, (int, float)):
+            raise EventValidationError("seconds debe ser un numero finito no negativo.")
+        if not math.isfinite(seconds) or seconds < 0:
+            raise EventValidationError("seconds debe ser un numero finito no negativo.")
+        if seconds == 0:
+            return self.scenario()["clock"]
+        before = self._record("advance_clock")
+        try:
+            self._clock.advance(timedelta(seconds=seconds))
+        except (OverflowError, ValueError) as error:
+            self._history.pop_snapshot()
+            self._restore(before)
+            raise EventValidationError(str(error)) from error
+        self._persist()
+        return self.scenario()["clock"]
+
+    def export_state(self):
+        """Exporta el estado operativo sin pila de retroceso ni otras versiones."""
+        return {"schema_version": 1, **encode_snapshot(self._snapshot())}
+
+    def load_state(self, data):
+        """Carga un estado exportado como una sola accion deshacible."""
+        if not isinstance(data, dict) or data.get("schema_version") != 1:
+            raise EventValidationError("el archivo no tiene un formato SismoLab compatible.")
+        try:
+            snapshot = decode_snapshot(data)
+            before = self._record("load_state")
+            self._restore(snapshot)
+            audit = self._avl_index.audit()
+            valid = audit["valid_bst"] and audit["valid_heights"] and audit["valid_depths"]
+            if self._stress_mode is False:
+                valid = valid and audit["balanced"]
+            if not valid or self.metrics() != snapshot["metrics"]:
+                raise EventValidationError("el estado importado no conserva sus invariantes.")
+        except (KeyError, TypeError, ValueError, OverflowError) as error:
+            if "before" in locals():
+                self._history.pop_snapshot()
+                self._restore(before)
+            if isinstance(error, EventValidationError):
+                raise
+            raise EventValidationError("el archivo de estado esta incompleto o invalido.") from error
+        self._persist()
+        return self.response()
+
+    def save_version(self, name):
+        """Guarda una copia operativa nombrada y persistente."""
+        name = name.strip() if isinstance(name, str) else ""
+        if not name or len(name) > 60:
+            raise EventValidationError("el nombre debe contener entre 1 y 60 caracteres.")
+        if any(version["name"].casefold() == name.casefold() for version in self._versions):
+            raise EventValidationError("ya existe una version con ese nombre.")
+        self._versions.append({
+            "name": name,
+            "created_at": self._clock.now().isoformat(),
+            "state": encode_snapshot(self._snapshot()),
+        })
+        self._persist()
+        return self.list_versions()
+
+    def list_versions(self):
+        """Lista versiones nombradas sin exponer su estado operativo completo."""
+        return [
+            {
+                "name": version["name"],
+                "created_at": version["created_at"],
+                "metrics": version["state"]["metrics"],
+            }
+            for version in self._versions
+        ]
+
+    def restore_version(self, name):
+        """Restaura una version y conserva el estado previo en la pila undo."""
+        version = next(
+            (item for item in self._versions if item["name"] == name),
+            None,
+        )
+        if version is None:
+            raise EventValidationError("la version solicitada no existe.")
+        before = self._record("restore_version")
+        try:
+            self._restore(decode_snapshot(version["state"]))
+        except (KeyError, TypeError, ValueError) as error:
+            self._history.pop_snapshot()
+            self._restore(before)
+            raise EventValidationError("la version guardada no es valida.") from error
+        self._persist()
+        return self.response()
+
+    def delete_version(self, name):
+        """Elimina una version nombrada sin alterar el estado operativo."""
+        versions = [version for version in self._versions if version["name"] != name]
+        if len(versions) == len(self._versions):
+            raise EventValidationError("la version solicitada no existe.")
+        self._versions = versions
+        self._persist()
+        return self.list_versions()
 
     def process_report(self, report):
         """Procesa un reporte individual segun reglas de revision."""
@@ -289,20 +534,36 @@ class EventCatalog:
 
     def enqueue_report(self, report):
         """Agrega un reporte a la cola pendiente de procesamiento."""
+        self._validator.validate(report)
+        self._record("enqueue_report")
         self._reports.enqueue(report)
+        self._persist()
 
     def process_pending_reports(self):
         """Procesa todos los reportes pendientes en orden FIFO."""
         if self._recovering:
             raise EventValidationError("la recuperacion esta en curso")
-        return self._reports.process_pending(self)
+        results = []
+        while self._reports.pending_count():
+            results.append(self.process_next_report())
+        return results
 
     def process_next_report(self):
         if self._recovering:
             raise EventValidationError("la recuperacion esta en curso")
-        result = self._reports.process_next(self)
+        if not self._reports.pending_count():
+            return None
+        before = self._record("process_report_step")
+        try:
+            with self._suspend_nested_commits():
+                result = self._reports.process_next(self)
+        except Exception:
+            self._history.pop_snapshot()
+            self._restore(before)
+            raise
         if result is None:
             return None
+        self._persist()
         return result
 
     def pending_reports(self):
@@ -345,6 +606,7 @@ class EventCatalog:
     def undo(self):
         """Restaura la ultima accion registrada y devuelve metricas actuales."""
         self._restore(self._history.pop_snapshot())
+        self._persist()
         return self.metrics()
 
     def history_count(self):

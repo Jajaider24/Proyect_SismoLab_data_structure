@@ -1,6 +1,6 @@
 """Servicio reutilizable para operar y presentar arboles AVL."""
 
-from src.core.AvlTree.metodos.balance import balance_factor
+from src.core.AvlTree.metodos.balance import balance_factor, update_depths
 from src.core.AvlTree.tree import AVL_tree
 
 
@@ -132,6 +132,13 @@ class AVLTreeService:
     def clear(self):
         """Reinicia la instancia en memoria."""
         self.tree = AVL_tree()
+
+    def restore_root(self, root):
+        """Instala una topologia ya validada sin insertar ni reequilibrar nodos."""
+        self.tree.root = root
+        if root is not None:
+            root.setParent(None)
+            update_depths(root)
 
 
 avl_tree_service = AVLTreeService()

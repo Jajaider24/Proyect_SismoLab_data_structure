@@ -26,3 +26,11 @@ class EventHistory:
         """Devuelve cuantas acciones pueden deshacerse."""
         return len(self._history)
 
+    def export(self):
+        """Expone una copia de las acciones desde la mas antigua a la reciente."""
+        return list(self._history.items())
+
+    def restore(self, entries):
+        """Restaura la pila sin compartir snapshots mutables con quien llama."""
+        self._history.restore(entries)
+

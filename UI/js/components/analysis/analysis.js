@@ -1,8 +1,10 @@
 import { treeService } from "../../services/treeService.js";
+import { initStructureComparison } from "./structureComparison.js";
 
 export function initAnalysis() {
   const output = document.querySelector("#analysis-result");
   const forms = document.querySelectorAll("[data-analysis]");
+  const comparisonView = initStructureComparison();
   const toQuery = (values) => new URLSearchParams(values).toString();
 
   forms.forEach((form) => {
@@ -40,8 +42,16 @@ export function initAnalysis() {
           default:
             return;
         }
+        if (form.dataset.analysis === "compare") {
+          comparisonView.render(result);
+          return;
+        }
+        comparisonView.hide();
+        output.hidden = false;
         output.textContent = JSON.stringify(result, null, 2);
       } catch (error) {
+        comparisonView.hide();
+        output.hidden = false;
         output.textContent = `[${error.status || 500}] ${error.message}`;
       }
     });

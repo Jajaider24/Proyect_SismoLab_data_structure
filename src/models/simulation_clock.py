@@ -29,6 +29,14 @@ class SimulationClock:
             self.current_time = datetime.now(timezone.utc)
         self.current_time += delta
 
+    def snapshot(self):
+        """Devuelve el instante UTC fijado, o None si el reloj sigue en vivo."""
+        return self.current_time
+
+    def restore(self, current_time):
+        """Restaura el instante conservando el modo vivo o fijo del reloj."""
+        self.current_time = self._utc(current_time) if current_time is not None else None
+
     def validate_occurrence(self, occurred_at: datetime):
         """Rechaza fechas de ocurrencia posteriores al tiempo de referencia."""
         if self._utc(occurred_at) > self.now():

@@ -35,6 +35,10 @@ class EventReportService:
     def pending(self):
         return self._pending_reports.items()
 
+    def restore_pending(self, reports):
+        """Restaura la cola FIFO con copias aisladas de los reportes."""
+        self._pending_reports.restore(report.copy() for report in reports)
+
     def process_report(self, report, catalog, tracker=None):
         """Aplica reglas de version para crear, confirmar o actualizar reportes."""
         catalog._validator.validate(report)

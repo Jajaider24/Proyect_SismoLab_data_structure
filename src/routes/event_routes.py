@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from src.controllers import event_controller
 from src.models.event import Event
+from src.models.zone import Zone
 
 
 router = APIRouter(prefix="/events", tags=["Events"])
@@ -52,13 +53,40 @@ class ModePayload(BaseModel):
 class OldArchivePreviewPayload(BaseModel):
     """Umbral configurable para buscar ramas de eventos antiguos."""
 
-    threshold_hours: float = Field(default=72, gt=0)
+    threshold_hours: float | None = Field(default=None, gt=0)
 
 
 class OldArchivePayload(OldArchivePreviewPayload):
     """Confirmacion de una rama con la lista exacta mostrada al usuario."""
 
     expected_identifiers: list[int]
+
+
+class ZonePayload(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    min_x: float = Field(ge=0, le=1000)
+    max_x: float = Field(ge=0, le=1000)
+    min_y: float = Field(ge=0, le=1000)
+    max_y: float = Field(ge=0, le=1000)
+    populated: bool = False
+
+    def to_zone(self):
+        if self.min_x > self.max_x or self.min_y > self.max_y:
+            raise HTTPException(status_code=422, detail="Los limites de zona no son validos.")
+        return Zone(**self.model_dump())
+
+
+class ScenarioParametersPayload(BaseModel):
+    archive_threshold_hours: float | None = Field(default=None, gt=0)
+    zones: list[ZonePayload] | None = None
+
+
+class ClockAdvancePayload(BaseModel):
+    seconds: float = Field(ge=0)
+
+
+class VersionPayload(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
 
 
 @router.get("/analysis/pending")
@@ -102,6 +130,55 @@ def query_costly_high_priority(depth_limit: int = Query(ge=0)):
 @router.get("/analysis/compare")
 def compare_event_structures():
     return event_controller.compare_event_structures()
+
+
+@router.get("/scenario")
+def get_scenario():
+    return event_controller.get_scenario()
+
+
+@router.put("/scenario/parameters")
+def update_scenario_parameters(payload: ScenarioParametersPayload):
+    zones = None if payload.zones is None else [zone.to_zone() for zone in payload.zones]
+    return event_controller.update_scenario_parameters(
+        payload.archive_threshold_hours,
+        zones,
+    )
+
+
+@router.post("/clock/advance")
+def advance_scenario_clock(payload: ClockAdvancePayload):
+    return event_controller.advance_scenario_clock(payload.seconds)
+
+
+@router.get("/export")
+def export_scenario_state():
+    return event_controller.export_scenario_state()
+
+
+@router.post("/import")
+def load_scenario_state(payload: dict):
+    return event_controller.load_scenario_state(payload)
+
+
+@router.get("/versions")
+def list_scenario_versions():
+    return event_controller.list_scenario_versions()
+
+
+@router.post("/versions", status_code=status.HTTP_201_CREATED)
+def save_scenario_version(payload: VersionPayload):
+    return event_controller.save_scenario_version(payload.name)
+
+
+@router.post("/versions/{name}/restore")
+def restore_scenario_version(name: str):
+    return event_controller.restore_scenario_version(name)
+
+
+@router.delete("/versions/{name}")
+def delete_scenario_version(name: str):
+    return event_controller.delete_scenario_version(name)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

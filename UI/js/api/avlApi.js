@@ -68,4 +68,25 @@ export const avlApi = {
   recover: () => request("/recover", { method: "POST" }),
   queryAnalysis: (path) => request(`/analysis/${path}`),
   compareStructures: () => request("/analysis/compare"),
+  getScenario: () => request("/scenario"),
+  updateScenarioParameters: (parameters) =>
+    request("/scenario/parameters", {
+      method: "PUT",
+      body: JSON.stringify(parameters),
+    }),
+  advanceClock: (seconds) =>
+    request("/clock/advance", {
+      method: "POST",
+      body: JSON.stringify({ seconds }),
+    }),
+  listVersions: () => request("/versions"),
+  saveVersion: (name) =>
+    request("/versions", { method: "POST", body: JSON.stringify({ name }) }),
+  restoreVersion: (name) =>
+    request(`/versions/${encodeURIComponent(name)}/restore`, { method: "POST" }),
+  deleteVersion: (name) =>
+    request(`/versions/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  exportState: () => request("/export"),
+  importState: (state) =>
+    request("/import", { method: "POST", body: JSON.stringify(state) }),
 };

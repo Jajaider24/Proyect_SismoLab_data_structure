@@ -1,0 +1,38 @@
+<section class="panel scenario-panel" aria-labelledby="scenario-title">
+  <div class="panel-heading">
+    <div>
+      <p class="section-kicker">Configuración activa</p>
+      <h2 id="scenario-title">Reloj y parámetros del escenario</h2>
+    </div>
+    <div class="scenario-clock-status">
+      <span>Reloj del escenario</span>
+      <strong id="scenario-clock">Cargando…</strong>
+    </div>
+  </div>
+  <div class="scenario-actions">
+    <form id="scenario-parameters-form">
+      <h3>Parámetros</h3>
+      <label>
+        Umbral predeterminado de archivo (horas)
+        <input
+          id="scenario-archive-threshold"
+          name="archive_threshold_hours"
+          type="number"
+          min="0.1"
+          step="any"
+          required
+        />
+      </label>
+      <button type="submit">Guardar parámetros</button>
+    </form>
+    <form id="scenario-clock-form">
+      <h3>Avanzar el reloj</h3>
+      <label>
+        Minutos que avanzará
+        <input name="minutes" type="number" min="0.1" step="any" value="60" required />
+      </label>
+      <button type="submit" class="secondary">Avanzar reloj</button>
+    </form>
+  </div>
+  <p id="scenario-message" class="message" aria-live="polite"></p>
+</section>

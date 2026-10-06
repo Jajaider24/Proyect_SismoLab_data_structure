@@ -23,5 +23,12 @@ class ZoneClassifier:
 	def __init__(self, zones=()):
 		self._zones = tuple(zones)
 
+	@property
+	def zones(self):
+		return self._zones
+
+	def replace_zones(self, zones):
+		self._zones = tuple(zones)
+
 	def is_populated(self, x: float, y: float) -> bool:
 		return any(zone.populated for zone in self._zones if zone.contains(x, y))

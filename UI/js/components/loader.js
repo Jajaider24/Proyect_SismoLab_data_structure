@@ -6,6 +6,8 @@ const components = [
   ["analysis", "../../components/analysis/analysis.html"],
   ["workspace", "../../components/workspace/workspace.html"],
   ["activity", "../../components/activity/activity.html"],
+  ["scenario", "../../components/scenario/scenario.html"],
+  ["versions", "../../components/versions/versions.html"],
 ];
 
 async function loadComponent([name, path]) {
@@ -16,4 +18,4 @@ async function loadComponent([name, path]) {
 }
 
 await Promise.all(components.map(loadComponent));
-await import("../app.js");
+await import("../app.js?v=3");

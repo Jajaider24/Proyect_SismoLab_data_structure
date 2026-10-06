@@ -22,4 +22,14 @@ export const treeService = {
   recover: async () => avlApi.recover(),
   queryAnalysis: async (path) => avlApi.queryAnalysis(path),
   compareStructures: async () => avlApi.compareStructures(),
+  getScenario: async () => avlApi.getScenario(),
+  updateScenarioParameters: async (parameters) =>
+    avlApi.updateScenarioParameters(parameters),
+  advanceClock: async (seconds) => avlApi.advanceClock(seconds),
+  listVersions: async () => avlApi.listVersions(),
+  saveVersion: async (name) => avlApi.saveVersion(name),
+  restoreVersion: async (name) => avlApi.restoreVersion(name),
+  deleteVersion: async (name) => avlApi.deleteVersion(name),
+  exportState: async () => avlApi.exportState(),
+  importState: async (state) => avlApi.importState(state),
 };

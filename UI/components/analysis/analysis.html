@@ -41,4 +41,51 @@
     </form>
   </div>
   <pre id="analysis-result" class="analysis-result" aria-live="polite">Ejecuta una consulta para ver los resultados y nodos AVL examinados.</pre>
+  <section
+    id="structure-comparison"
+    class="structure-comparison"
+    aria-labelledby="comparison-title"
+    hidden
+  >
+    <div class="comparison-heading">
+      <div>
+        <p class="section-kicker">Visualización de estructuras</p>
+        <h3 id="comparison-title">Comparación AVL y BST</h3>
+      </div>
+      <button id="close-comparison" type="button" class="secondary">
+        Volver a resultados
+      </button>
+    </div>
+    <div class="comparison-controls">
+      <label for="comparison-order">Orden de inserción</label>
+      <select id="comparison-order">
+        <option value="catalog_order">Orden del catálogo</option>
+        <option value="ascending">Ascendente</option>
+        <option value="descending">Descendente</option>
+      </select>
+      <p id="comparison-order-description" class="muted"></p>
+    </div>
+    <div id="comparison-metrics" class="comparison-metrics"></div>
+    <div class="comparison-trees">
+      <article class="comparison-tree-card">
+        <div class="comparison-tree-heading">
+          <div><h4>Árbol AVL</h4><p>Balanceado automáticamente</p></div>
+          <span id="avl-tree-summary"></span>
+        </div>
+        <div class="comparison-tree-scroll">
+          <svg id="comparison-avl-tree" role="img" aria-label="Árbol AVL de comparación"></svg>
+        </div>
+      </article>
+      <article class="comparison-tree-card">
+        <div class="comparison-tree-heading">
+          <div><h4>Árbol BST</h4><p>Sin rebalanceo automático</p></div>
+          <span id="bst-tree-summary"></span>
+        </div>
+        <div class="comparison-tree-scroll">
+          <svg id="comparison-bst-tree" role="img" aria-label="Árbol BST de comparación"></svg>
+        </div>
+      </article>
+    </div>
+    <div id="comparison-searches" class="comparison-searches"></div>
+  </section>
 </section>

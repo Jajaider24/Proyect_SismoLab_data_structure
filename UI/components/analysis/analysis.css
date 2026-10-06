@@ -38,3 +38,172 @@
   white-space: pre-wrap;
   font: 12px/1.5 "DM Mono", Consolas, monospace;
 }
+
+.structure-comparison {
+  margin-top: 18px;
+  padding: 18px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  scroll-margin-top: 84px;
+}
+.structure-comparison[hidden] { display: none; }
+.comparison-heading,
+.comparison-tree-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.comparison-heading h3,
+.comparison-tree-heading h4,
+.comparison-searches h4 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 20px Georgia, serif;
+}
+.comparison-heading .section-kicker { margin-bottom: 6px; }
+.comparison-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.comparison-controls select {
+  min-height: 38px;
+  padding: 7px 32px 7px 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+.comparison-controls p { flex: 1 1 100%; margin: 0; }
+.comparison-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
+.comparison-metric {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.comparison-metric span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.comparison-metric strong {
+  color: var(--teal-dark);
+  font: 700 20px "DM Mono", Consolas, monospace;
+}
+.comparison-trees {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.comparison-tree-card {
+  min-width: 0;
+  padding: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.comparison-tree-heading h4 { font-size: 17px; }
+.comparison-tree-heading p,
+.comparison-tree-heading > span {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.comparison-tree-heading > span { text-align: right; }
+.comparison-tree-scroll {
+  max-height: 540px;
+  min-height: 250px;
+  margin-top: 13px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background-image: radial-gradient(rgba(8, 127, 120, 0.12) 0.7px, transparent 0.7px);
+  background-size: 16px 16px;
+}
+.comparison-tree-scroll svg {
+  display: block;
+  width: auto;
+  min-width: 100%;
+  max-width: none;
+  color: var(--ink);
+}
+.comparison-links path {
+  fill: none;
+  stroke: #91aaa5;
+  stroke-width: 2;
+}
+.comparison-node circle {
+  stroke: white;
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 3px rgba(16, 47, 54, 0.18));
+}
+.comparison-avl circle { fill: var(--teal); }
+.comparison-bst circle { fill: var(--gold); }
+.comparison-node-id {
+  fill: white;
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.comparison-node-detail {
+  fill: var(--muted);
+  font-size: 10px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.comparison-empty {
+  fill: var(--muted);
+  font-size: 14px;
+}
+.comparison-searches {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+.comparison-searches h4 { font-size: 17px; }
+.comparison-searches > p {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.comparison-search-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+  font-size: 12px;
+  text-align: left;
+}
+.comparison-search-table th,
+.comparison-search-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.comparison-search-table th {
+  color: var(--teal-dark);
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .comparison-trees { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .structure-comparison { padding: 14px; }
+  .comparison-heading { align-items: stretch; flex-direction: column; }
+  .comparison-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comparison-tree-heading { flex-direction: column; }
+  .comparison-tree-heading > span { text-align: left; }
+}

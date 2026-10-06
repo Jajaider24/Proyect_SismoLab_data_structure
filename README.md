@@ -28,6 +28,16 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 - `POST /events/reports/process/step` procesa exactamente un reporte FIFO.
 - `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
 - `POST /events/undo` deshace la ultima accion.
+- `GET /events/history` informa cuantas acciones quedan en la pila.
+- `GET /events/scenario` consulta reloj, parametros, modo y metricas.
+- `PUT /events/scenario/parameters` cambia el umbral de archivo o las zonas
+  pobladas; cada cambio confirmado se registra como una accion.
+- `POST /events/clock/advance` avanza el reloj de simulacion en segundos.
+- `GET /events/export` exporta el estado operativo actual.
+- `POST /events/import` carga una exportacion y deja la carga en la pila undo.
+- `GET /events/versions`, `POST /events/versions` y
+  `POST /events/versions/{name}/restore` administran versiones nombradas.
+- `DELETE /events/versions/{name}` elimina una version guardada.
 - `GET /events/tree` entrega el AVL, metricas y valores in-order.
 - `GET /events/analysis/pending?k=5` devuelve hasta k pendientes en orden
   descendente de `EventKey` (prioridad, magnitud, identificador).
@@ -78,6 +88,30 @@ en el hash de la URL. La UI separa API, servicio, estado, componentes y
 renderizador D3, y usa el CDN de D3.js. El catálogo mantiene un índice auxiliar
 por identificador y separa el estado activo del histórico. Las coordenadas del
 escenario son `x` e `y` en el rango `0..1000` km.
+
+## Estado persistente y deshacer
+
+El estado y las versiones se guardan en `data/sismolab-state.json` mediante un
+archivo temporal y reemplazo atomico. Se puede cambiar la ruta con
+`SISMOLAB_STATE_PATH`. Cada paso FIFO genera su propia accion, incluso si el
+reporte se descarta; la pila guarda una copia aislada de los datos, cola, reloj,
+parametros, modo y enlaces izquierda/derecha del AVL. Por eso undo restaura la
+topologia previa en vez de reconstruir una forma equivalente.
+
+Las versiones nombradas contienen el mismo estado operativo que la exportacion,
+pero no copian la pila undo ni otras versiones. Restaurar una version agrega el
+estado anterior a la pila y se puede deshacer. Exportar y cargar estan disponibles
+en Inicio.
+
+El historial usa snapshots completos para mantener sencilla la restauracion
+exacta: con `A` acciones, `E` eventos, `Q` reportes pendientes y `R` referencias
+de asociacion, el coste retenido es `O(A * (E + Q + R))`. Las copias se hacen
+antes de cada accion y contienen solo objetos del estado operativo; las
+rotaciones internas no generan snapshots. Las versiones añaden `O(V * (E + Q +
+R))` para `V` versiones guardadas. Esta representacion favorece la claridad y la
+exactitud para escenarios de simulacion de tamaño moderado; catálogos grandes
+requeririan reemplazar los snapshots completos por cambios inversos o snapshots
+con copy-on-write.
 
 ## Pruebas
 

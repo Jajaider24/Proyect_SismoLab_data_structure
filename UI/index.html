@@ -15,7 +15,9 @@
     <link rel="stylesheet" href="components/workspace/workspace.css" />
     <link rel="stylesheet" href="components/workspace/inspector.css" />
     <link rel="stylesheet" href="components/activity/activity.css" />
-    <link rel="stylesheet" href="components/analysis/analysis.css" />
+    <link rel="stylesheet" href="components/analysis/analysis.css?v=3" />
+    <link rel="stylesheet" href="components/scenario/scenario.css" />
+    <link rel="stylesheet" href="components/versions/versions.css" />
     <link rel="stylesheet" href="css/views.css" />
   </head>
   <body>
@@ -31,6 +33,8 @@
         <h2 class="view-title" id="inicio-title" tabindex="-1">Resumen operativo</h2>
         <div data-component="metrics"></div>
         <div data-component="activity"></div>
+        <div data-component="scenario"></div>
+        <div data-component="versions"></div>
       </section>
       <section
         class="view"
@@ -62,6 +66,6 @@
       </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <script type="module" src="js/components/loader.js"></script>
+    <script type="module" src="js/components/loader.js?v=3"></script>
   </body>
 </html>

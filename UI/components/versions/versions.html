@@ -1,0 +1,30 @@
+<section class="panel versions-panel" aria-labelledby="versions-title">
+  <div class="panel-heading">
+    <div>
+      <p class="section-kicker">Puntos de restauración</p>
+      <h2 id="versions-title">Versiones persistentes</h2>
+    </div>
+    <span id="versions-count" class="count-label">0 versiones</span>
+  </div>
+  <form id="save-version-form" class="version-save-form">
+    <label for="version-name">Nombre de la versión</label>
+    <input id="version-name" name="name" type="text" maxlength="60" required placeholder="Ej. Escenario inicial" />
+    <button type="submit">Guardar versión</button>
+  </form>
+  <div class="version-restore-form">
+    <label for="version-select">Restaurar una versión guardada</label>
+    <select id="version-select">
+      <option value="">Selecciona una versión</option>
+    </select>
+    <button id="restore-version" type="button" class="secondary" disabled>Restaurar</button>
+  </div>
+  <div class="version-file-actions">
+    <button id="export-state" type="button" class="secondary">Exportar estado</button>
+    <form id="import-state-form">
+      <label for="state-file">Cargar un estado exportado</label>
+      <input id="state-file" type="file" accept="application/json,.json" required />
+      <button type="submit" class="secondary">Cargar estado</button>
+    </form>
+  </div>
+  <p id="versions-message" class="message" aria-live="polite"></p>
+</section>

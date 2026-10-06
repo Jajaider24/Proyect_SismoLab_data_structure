@@ -18,3 +18,11 @@ class Stack:
 
     def __len__(self):
         return len(self._items)
+
+    def items(self):
+        """Devuelve una copia ordenada desde el fondo hasta la cima."""
+        return list(self._items)
+
+    def restore(self, items):
+        """Reemplaza el contenido usando una secuencia desde el fondo."""
+        self._items = list(items)
