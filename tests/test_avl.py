@@ -5,6 +5,7 @@ import unittest
 from src.core.AvlTree.tree import AVL_tree
 from src.core.AvlTree.metodos.insert import left
 from src.core.node.node import Node
+from src.services.Avlservice import AVLTreeService
 
 
 class TestAVL(unittest.TestCase):
@@ -99,6 +100,38 @@ class TestAVL(unittest.TestCase):
         self.assertEqual(Node(3, magnitud=4.5, profundidad_h=30.1,
                               zona_poblada=True).getPriority(), 2)
         self.assertEqual(Node(4, magnitud=4.4, zona_poblada=True).getPriority(), 1)
+
+    def test_service_update_preserves_node_for_non_priority_inputs(self):
+        service = AVLTreeService()
+        service.insert_node(Node(10))
+        service.insert_node(Node(20))
+        original = service.find_node(10)
+
+        self.assertEqual(
+            service.update_node(
+                10,
+                Node(
+                    10,
+                    x=50,
+                    y=60,
+                    fecha_hora="2026-10-06T10:00:00+00:00",
+                    revision="2",
+                    procedencia="STA-2",
+                ),
+            ),
+            "updated",
+        )
+        self.assertIs(service.find_node(10), original)
+        self.assertEqual(original.getX(), 50)
+        self.assertEqual(original.getY(), 60)
+        self.assertEqual(original.procedencia, "STA-2")
+
+        self.assertEqual(
+            service.update_node(10, Node(10, profundidad_h=40)),
+            "updated",
+        )
+        self.assertIsNot(service.find_node(10), original)
+        self.assertEqual(service.find_node(10).profundidad_h, 40)
 
 
 if __name__ == "__main__":

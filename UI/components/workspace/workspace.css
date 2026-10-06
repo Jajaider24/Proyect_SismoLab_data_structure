@@ -20,6 +20,12 @@
 .panel-heading {
   align-items: flex-start;
 }
+#refresh-tree-button {
+  margin-top: 9px;
+}
+#tree-refresh-message:empty {
+  display: none;
+}
 .legend {
   display: flex;
   flex-wrap: wrap;

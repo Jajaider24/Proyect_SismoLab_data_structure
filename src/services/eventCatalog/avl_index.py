@@ -58,6 +58,20 @@ class EventAvlIndex:
             raise EventValidationError("no se pudo insertar la clave del evento.")
         self._nodes_by_id[event.identifier] = node
 
+    def update(self, event, reinsert, tracker=None, rebalance=True):
+        """Actualiza un nodo existente o lo reinserta si cambia su clave AVL."""
+        current = self._nodes_by_id.get(event.identifier)
+        if current is None:
+            raise EventNotFound(event.identifier)
+
+        if reinsert:
+            self.remove(event.identifier, tracker=tracker, rebalance=rebalance)
+            self.insert(event, tracker=tracker, rebalance=rebalance)
+            return
+
+        # Los datos no usados por el orden se copian sin cambiar identidad ni enlaces.
+        current.copy_data_from(self.node_from_event(event))
+
     def remove(self, identifier, tracker=None, rebalance=True):
         """Elimina del AVL el nodo de un evento activo por identificador."""
         if tracker is None:

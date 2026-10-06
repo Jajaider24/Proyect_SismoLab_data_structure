@@ -98,6 +98,15 @@ class EventCatalog:
             rebalance=not self._stress_mode,
         )
 
+    def _update_active(self, event, reinsert, tracker=None):
+        """Actualiza un evento en el índice conservando el nodo si su clave no cambia."""
+        self._avl_index.update(
+            event,
+            reinsert=reinsert,
+            tracker=tracker or self._rotation_tracker,
+            rebalance=not self._stress_mode,
+        )
+
     def set_stress_mode(self, enabled):
         if self._recovering:
             raise EventValidationError("la recuperacion esta en curso")
@@ -160,14 +169,20 @@ class EventCatalog:
         if event.identifier != identifier:
             raise EventValidationError("el identificador es inmutable.")
         prepared = self._prepare(event)
+        # Magnitud, profundidad_h y zona poblada son los datos que determinan
+        # la prioridad/clave; los demás cambios no alteran la posición AVL.
+        reinsert = (
+            prepared.magnitude != current.magnitude
+            or prepared.depth_km != current.depth_km
+            or prepared.populated_zone != current.populated_zone
+        )
         self._record("update")
         prepared.revision = current.revision + 1
         prepared.attention = AttentionState.PENDING
         prepared.accepted_stations = set(current.accepted_stations)
         self._store.remove_active(identifier)
-        self._remove_active(identifier)
         self._store.add_active(prepared)
-        self._insert_active(prepared)
+        self._update_active(prepared, reinsert=reinsert)
         self._sync_associations()
         return self.get(identifier)
 

@@ -39,14 +39,20 @@ class AVLTreeService:
         return self.tree.recover()
 
     def update_node(self, original_identifier, node):
-        """Edita atributos; si cambia la clave, elimina e inserta de nuevo."""
+        """Edita datos y solo reinserta cuando cambian entradas de la prioridad."""
         current = self.find_node(original_identifier)
         if current is None:
             return "not_found"
         duplicate = self.find_node(node.getIdentifier())
         if duplicate is not None and duplicate is not current:
             return "duplicate"
-        if duplicate is current and node.get_order_key() == current.get_order_key():
+        reinsert = (
+            node.getIdentifier() != current.getIdentifier()
+            or node.magnitud != current.magnitud
+            or node.profundidad_h != current.profundidad_h
+            or node.zona_poblada != current.zona_poblada
+        )
+        if not reinsert:
             current.copy_data_from(node)
             return "updated"
         self.tree.delete(original_identifier)

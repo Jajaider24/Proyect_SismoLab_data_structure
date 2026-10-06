@@ -33,6 +33,69 @@ class TestEventCatalog(unittest.TestCase):
         self.catalog.undo()
         self.assertEqual(self.catalog.get(1).state, EventState.ACTIVE)
 
+    def test_update_only_reinserts_when_priority_inputs_change(self):
+        self.catalog.create(self.event())
+        original_node = self.catalog.tree._find_by_identifier(
+            self.catalog.tree.getRoot(), 1
+        )
+
+        updated = self.catalog.update(
+            1,
+            self.event(
+                station="STA-2",
+                when=self.when + timedelta(minutes=5),
+                x=10,
+                y=10,
+            ),
+        )
+        same_node = self.catalog.tree._find_by_identifier(
+            self.catalog.tree.getRoot(), 1
+        )
+        self.assertIs(same_node, original_node)
+        self.assertEqual(same_node.getNodeDepth(), 1)
+        self.assertEqual(updated.station, "STA-2")
+        self.assertEqual(same_node.procedencia, "STA-2")
+        self.assertEqual(same_node.x, 10)
+        self.assertEqual(same_node.fecha_hora, updated.occurred_at.isoformat())
+
+        self.catalog.update(1, self.event(magnitude=5.0))
+        reinserted_node = self.catalog.tree._find_by_identifier(
+            self.catalog.tree.getRoot(), 1
+        )
+        self.assertIsNot(reinserted_node, original_node)
+
+        self.catalog.update(1, self.event(magnitude=5.0, depth=25.0))
+        depth_updated_node = self.catalog.tree._find_by_identifier(
+            self.catalog.tree.getRoot(), 1
+        )
+        self.assertIsNot(depth_updated_node, reinserted_node)
+        self.assertEqual(depth_updated_node.profundidad_h, 25.0)
+
+    def test_update_reinserts_when_coordinates_change_priority_zone(self):
+        from src.models.zone import Zone, ZoneClassifier
+
+        zone_catalog = EventCatalog(
+            zone_classifier=ZoneClassifier((
+                Zone("populated", 10, 20, 10, 20, populated=True),
+            ))
+        )
+        zone_catalog.create(self.event(magnitude=5.0, depth=20, x=0, y=0))
+        original_node = zone_catalog.tree._find_by_identifier(
+            zone_catalog.tree.getRoot(), 1
+        )
+        self.assertEqual(zone_catalog.get(1).priority, 2)
+
+        zone_catalog.update(
+            1,
+            self.event(magnitude=5.0, depth=20, x=15, y=15),
+        )
+        updated_node = zone_catalog.tree._find_by_identifier(
+            zone_catalog.tree.getRoot(), 1
+        )
+        self.assertIsNot(updated_node, original_node)
+        self.assertTrue(zone_catalog.get(1).populated_zone)
+        self.assertEqual(zone_catalog.get(1).priority, 3)
+
     def test_identifier_is_immutable_and_not_reusable(self):
         self.catalog.create(self.event())
         with self.assertRaises(EventValidationError):
