@@ -9,7 +9,8 @@ from src.core.structures.stack import Stack
 from src.models.event import Event
 from src.models.simulation_clock import SimulationClock
 from src.models.zone import Zone, ZoneClassifier
-from src.services.event_catalog import EventCatalog, EventValidationError
+from src.services.eventCatalog_Service import EventCatalog
+from src.services.eventCatalog.exceptions import EventValidationError
 
 
 class TestScenarioStructures(unittest.TestCase):

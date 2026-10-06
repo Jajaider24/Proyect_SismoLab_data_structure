@@ -4,7 +4,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from src.models.event import AttentionState, Event, EventState
-from src.services.event_catalog import EventCatalog, EventNotFound, EventValidationError
+from src.services.eventCatalog_Service import EventCatalog
+from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
 
 
 class TestEventCatalog(unittest.TestCase):

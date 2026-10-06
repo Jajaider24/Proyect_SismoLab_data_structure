@@ -2,7 +2,8 @@
 
 from fastapi import HTTPException
 
-from src.services.event_catalog import EventCatalog, EventNotFound, EventValidationError
+from src.services.eventCatalog_Service import EventCatalog
+from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
 
 
 event_catalog = EventCatalog()
