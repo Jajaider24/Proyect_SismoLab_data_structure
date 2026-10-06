@@ -1,6 +1,7 @@
 """Conversiones entre estado operativo y valores JSON sin referencias mutables."""
 
 from datetime import datetime
+from copy import deepcopy
 
 from src.models.event import AttentionState, Event, EventState
 from src.models.zone import Zone
@@ -69,12 +70,25 @@ def encode_snapshot(snapshot):
         },
         "stress_mode": snapshot["stress_mode"],
         "topology": snapshot["topology"],
+        "height_convention": "empty-minus-one-leaf-zero",
         "metrics": snapshot["metrics"],
+        "indicators": snapshot.get("indicators", {}),
     }
 
 
 def decode_snapshot(data):
     parameters = data["parameters"]
+    topology = deepcopy(data["topology"])
+    if data.get("height_convention") is None:
+        # Snapshots escritos antes del requisito 14 guardaban hoja=1.
+        pending = [topology] if topology is not None else []
+        while pending:
+            branch = pending.pop()
+            branch["height"] -= 1
+            if branch["left"] is not None:
+                pending.append(branch["left"])
+            if branch["right"] is not None:
+                pending.append(branch["right"])
     return {
         "store": {
             state: {event.identifier: event for event in map(_event_from_dict, events)}
@@ -87,6 +101,7 @@ def decode_snapshot(data):
             "zones": [Zone(**zone) for zone in parameters["zones"]],
         },
         "stress_mode": data["stress_mode"],
-        "topology": data["topology"],
+        "topology": topology,
         "metrics": data["metrics"],
+        "indicators": data.get("indicators", {}),
     }

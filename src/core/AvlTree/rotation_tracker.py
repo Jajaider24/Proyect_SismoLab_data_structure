@@ -9,6 +9,7 @@ _active_tracker = ContextVar("active_rotation_tracker", default=None)
 class RotationTracker:
     def __init__(self):
         self.events = []
+        self.cases = []
 
     def __enter__(self):
         self._token = _active_tracker.set(self)
@@ -22,3 +23,9 @@ def record_rotation(rotation):
     tracker = _active_tracker.get()
     if tracker is not None:
         tracker.events.append(rotation)
+
+
+def record_case(case):
+    tracker = _active_tracker.get()
+    if tracker is not None and case:
+        tracker.cases.append(case)

@@ -204,6 +204,12 @@ def get_event_mode():
     return event_controller.get_event_mode()
 
 
+@router.get("/verify")
+def verify_event_structure():
+    """Audita estructura y referencias tanto en modo normal como en estrés."""
+    return event_controller.verify_event_structure()
+
+
 @router.post("/mode")
 def set_event_mode(payload: ModePayload):
     return event_controller.set_event_mode(payload.stress)

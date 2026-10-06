@@ -45,11 +45,19 @@ def get_event_tree():
 
 def get_event_history():
     """Devuelve conteos del historial de acciones y metricas actuales."""
-    return {"actions": event_catalog.history_count(), "metrics": event_catalog.metrics()}
+    return {
+        "actions": event_catalog.history_count(),
+        "metrics": event_catalog.metrics(),
+        "explanations": event_catalog.history_report(),
+    }
 
 
 def get_event_mode():
     return event_catalog.status()
+
+
+def verify_event_structure():
+    return event_catalog.verify_structure()
 
 
 def set_event_mode(stress):

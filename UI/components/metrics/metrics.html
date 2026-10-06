@@ -17,6 +17,43 @@
   <article class="metric-card">
     <span class="metric-label">Altura del árbol</span>
     <strong id="metric-height">0</strong>
-    <span class="metric-note">balance estructural</span>
+    <span class="metric-note">hoja = 0 · vacío = -1</span>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Eventos históricos</span>
+    <strong id="metric-historical">0</strong>
+    <span class="metric-note">archivados y eliminados</span>
+  </article>
+  <article class="metric-card">
+    <span class="metric-label">Hojas</span>
+    <strong id="metric-leaves">0</strong>
+    <span class="metric-note">del árbol activo</span>
   </article>
 </section>
+<details class="metric-details">
+  <summary>Indicadores, rotaciones y recorridos</summary>
+  <div class="metric-detail-grid">
+    <p>Prioridad 1 <strong id="metric-priority-1">0</strong></p>
+    <p>Prioridad 2 <strong id="metric-priority-2">0</strong></p>
+    <p>Prioridad 3 <strong id="metric-priority-3">0</strong></p>
+    <p>Correcciones aceptadas <strong id="metric-corrections">0</strong></p>
+    <p>Reportes descartados <strong id="metric-discarded">0</strong></p>
+    <p>Conflictos <strong id="metric-conflicts">0</strong></p>
+    <p>Archivos masivos <strong id="metric-bulk-archives">0</strong></p>
+    <p>Eventos archivados <strong id="metric-archived">0</strong></p>
+    <p>Casos LL / RR <strong id="metric-cases-ll-rr">0 / 0</strong></p>
+    <p>Casos LR / RL <strong id="metric-cases-lr-rl">0 / 0</strong></p>
+    <p>Giros simples izquierda / derecha <strong id="metric-rotations">0 / 0</strong></p>
+    <p>Acceso costoso (P3, profundidad &gt; 2) <strong id="metric-costly">0</strong></p>
+  </div>
+  <div class="metric-traversals">
+    <p>Inorden <code id="traversal-inorder">—</code></p>
+    <p>Preorden <code id="traversal-preorder">—</code></p>
+    <p>Postorden <code id="traversal-postorder">—</code></p>
+    <p>Por niveles <code id="traversal-level-order">—</code></p>
+  </div>
+  <button id="show-metric-history" type="button" class="secondary">
+    Ver trazabilidad de métricas
+  </button>
+  <ol id="metric-history" class="metric-history" aria-live="polite"></ol>
+</details>

@@ -11,11 +11,11 @@ const components = [
 ];
 
 async function loadComponent([name, path]) {
-  const response = await fetch(path);
+  const response = await fetch(`${path}?v=4`);
   if (!response.ok) throw new Error(`No se pudo cargar el componente ${name}.`);
   const host = document.querySelector(`[data-component="${name}"]`);
   host.innerHTML = await response.text();
 }
 
 await Promise.all(components.map(loadComponent));
-await import("../app.js?v=3");
+await import("../app.js?v=4");

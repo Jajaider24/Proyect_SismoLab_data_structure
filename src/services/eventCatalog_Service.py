@@ -19,6 +19,7 @@ from src.services.eventCatalog.validator import EventValidator
 from src.core.AvlTree.rotation_tracker import RotationTracker
 from src.services.event_policies import AssociationPolicy, PriorityPolicy
 from src.services.eventCatalog.state_codec import decode_snapshot, encode_snapshot
+from src.services.eventCatalog.metrics import EventMetrics
 
 
 class EventCatalog:
@@ -38,11 +39,20 @@ class EventCatalog:
         self._association_policy = AssociationPolicy()
         self._avl_index = EventAvlIndex(avl_service)
         self._performance_queries = EventPerformanceQueries(self._store, self._avl_index)
+        self._metrics = EventMetrics()
         self._history = EventHistory()
         self._reports = EventReportService()
         self._replicas = EventReplicaService()
         self._responses = EventResponseBuilder()
         self._rotation_tracker = None
+        self._indicators = {
+            "accepted_corrections": 0,
+            "discarded_reports": 0,
+            "conflicts": 0,
+            "bulk_archives": 0,
+            "rotation_cases": {case: 0 for case in ("LL", "RR", "LR", "RL")},
+            "simple_rotations": {direction: 0 for direction in ("left", "right")},
+        }
         self._stress_mode = False
         self._recovering = False
         self._repository = repository
@@ -85,6 +95,7 @@ class EventCatalog:
             "stress_mode": self._stress_mode,
             "topology": self._avl_index.snapshot_topology(),
             "metrics": self.metrics(),
+            "indicators": self._copy_indicators(),
         }
 
     def _restore(self, snapshot):
@@ -99,7 +110,38 @@ class EventCatalog:
         if hasattr(self._zone_classifier, "replace_zones"):
             self._zone_classifier.replace_zones(self._parameters["zones"])
         self._stress_mode = snapshot["stress_mode"]
+        self._indicators = self._copy_indicators(snapshot.get("indicators"))
         self._avl_index.restore_topology(self._store.active, snapshot["topology"])
+
+    def _copy_indicators(self, indicators=None):
+        source = self._indicators if indicators is None else indicators
+        rotation_cases = {case: 0 for case in ("LL", "RR", "LR", "RL")}
+        rotation_cases.update(source.get("rotation_cases", {}))
+        simple_rotations = {direction: 0 for direction in ("left", "right")}
+        simple_rotations.update(source.get("simple_rotations", {}))
+        return {
+            "accepted_corrections": source.get("accepted_corrections", 0),
+            "discarded_reports": source.get("discarded_reports", 0),
+            "conflicts": source.get("conflicts", 0),
+            "bulk_archives": source.get("bulk_archives", 0),
+            "rotation_cases": rotation_cases,
+            "simple_rotations": simple_rotations,
+        }
+
+    def _accumulate_rotations(self, tracker):
+        for case in tracker.cases:
+            self._indicators["rotation_cases"][case] += 1
+        for direction in tracker.events:
+            self._indicators["simple_rotations"][direction] += 1
+
+    def _track_avl_mutation(self, operation):
+        if self._rotation_tracker is not None:
+            return operation(self._rotation_tracker)
+        tracker = RotationTracker()
+        with tracker:
+            result = operation(tracker)
+        self._accumulate_rotations(tracker)
+        return result
 
     def _record(self, action):
         """Guarda una copia aislada antes de una accion de dominio."""
@@ -153,10 +195,10 @@ class EventCatalog:
 
     def _rebuild_tree(self):
         """Reconstruye el indice AVL desde eventos activos."""
-        self._avl_index.rebuild(
-            self._store.active,
-            rebalance=not self._stress_mode,
-        )
+        tracker = RotationTracker()
+        with tracker:
+            self._avl_index.rebuild(self._store.active, rebalance=not self._stress_mode)
+        self._accumulate_rotations(tracker)
         self._sync_associations()
 
     def _sync_associations(self):
@@ -165,28 +207,25 @@ class EventCatalog:
 
     def _insert_active(self, event, tracker=None):
         """Inserta en el AVL el nodo derivado de un evento activo."""
-        self._avl_index.insert(
-            event,
-            tracker or self._rotation_tracker,
-            rebalance=not self._stress_mode,
-        )
+        self._track_avl_mutation(lambda active_tracker: self._avl_index.insert(
+            event, tracker or self._rotation_tracker or active_tracker,
+            rebalance=not self._stress_mode
+        ))
 
     def _remove_active(self, identifier, tracker=None):
         """Elimina del AVL el nodo de un evento activo por identificador."""
-        self._avl_index.remove(
-            identifier,
-            tracker or self._rotation_tracker,
-            rebalance=not self._stress_mode,
-        )
+        self._track_avl_mutation(lambda active_tracker: self._avl_index.remove(
+            identifier, tracker or self._rotation_tracker or active_tracker,
+            rebalance=not self._stress_mode
+        ))
 
     def _update_active(self, event, reinsert, tracker=None):
         """Actualiza un evento en el índice conservando el nodo si su clave no cambia."""
-        self._avl_index.update(
-            event,
-            reinsert=reinsert,
-            tracker=tracker or self._rotation_tracker,
-            rebalance=not self._stress_mode,
-        )
+        self._track_avl_mutation(lambda active_tracker: self._avl_index.update(
+            event, reinsert=reinsert,
+            tracker=tracker or self._rotation_tracker or active_tracker,
+            rebalance=not self._stress_mode
+        ))
 
     def set_stress_mode(self, enabled):
         if self._recovering:
@@ -221,6 +260,10 @@ class EventCatalog:
                     or not after["valid_heights"] or not after["valid_depths"]):
                 raise EventValidationError("la auditoria no confirma un AVL valido")
             self._stress_mode = False
+            tracker_result = RotationTracker()
+            tracker_result.events = result.get("rotations", [])
+            tracker_result.cases = result.get("cases", [])
+            self._accumulate_rotations(tracker_result)
             self._persist()
             return {
                 "mode": "normal",
@@ -269,6 +312,7 @@ class EventCatalog:
             or prepared.populated_zone != current.populated_zone
         )
         self._record("update")
+        self._indicators["accepted_corrections"] += 1
         prepared.revision = current.revision + 1
         prepared.attention = AttentionState.PENDING
         prepared.accepted_stations = set(current.accepted_stations)
@@ -302,6 +346,7 @@ class EventCatalog:
         """Archiva el subarbol AVL que nace en el identificador indicado."""
         identifiers = self._avl_index.branch_identifiers(identifier)
         self._record("archive")
+        self._indicators["bulk_archives"] += 1
         for event_id in identifiers:
             self._store.move_active_to_archived(event_id)
             self._remove_active(event_id)
@@ -358,6 +403,7 @@ class EventCatalog:
 
         fixed_identifiers = list(preview["identifiers"])
         self._record("archive_old_branch")
+        self._indicators["bulk_archives"] += 1
         for event_id in fixed_identifiers:
             self._store.move_active_to_archived(event_id)
             self._remove_active(event_id)
@@ -452,7 +498,12 @@ class EventCatalog:
             valid = audit["valid_bst"] and audit["valid_heights"] and audit["valid_depths"]
             if self._stress_mode is False:
                 valid = valid and audit["balanced"]
-            if not valid or self.metrics() != snapshot["metrics"]:
+            current_metrics = self.metrics()
+            metrics_match = all(
+                current_metrics.get(key) == value
+                for key, value in snapshot["metrics"].items()
+            )
+            if not valid or not metrics_match:
                 raise EventValidationError("el estado importado no conserva sus invariantes.")
         except (KeyError, TypeError, ValueError, OverflowError) as error:
             if "before" in locals():
@@ -524,9 +575,11 @@ class EventCatalog:
         try:
             with tracker:
                 result = self._reports.process_report(report, self, tracker)
+            self._accumulate_rotations(tracker)
         finally:
             self._rotation_tracker = None
         result["rotations"] = tracker.events
+        result["rotation_cases"] = tracker.cases
         result["report"] = self.as_dict(report)
         result["mode"] = "stress" if self._stress_mode else "normal"
         result["deferred"] = self._stress_mode
@@ -557,6 +610,13 @@ class EventCatalog:
         try:
             with self._suspend_nested_commits():
                 result = self._reports.process_next(self)
+                if result is not None:
+                    if result["status"] == "updated":
+                        self._indicators["accepted_corrections"] += 1
+                    elif result["status"] == "conflict":
+                        self._indicators["conflicts"] += 1
+                    elif result["status"] in {"stale", "rejected_deleted"}:
+                        self._indicators["discarded_reports"] += 1
         except Exception:
             self._history.pop_snapshot()
             self._restore(before)
@@ -600,6 +660,74 @@ class EventCatalog:
     def query_costly_high_priority(self, depth_limit):
         return self._performance_queries.costly_high_priority(depth_limit)
 
+    def verify_structure(self):
+        """Audita el AVL y referencias de dominio y reporta cada evento afectado."""
+        audit = self._avl_index.audit()
+        reports = {
+            item["identifier"]: dict(item, issues=list(item["issues"]))
+            for item in audit.get("events", [])
+        }
+        all_events = {
+            **self._store.active,
+            **self._store.archived,
+            **self._store.deleted,
+        }
+        locations = {}
+        for state, events in (
+            ("active", self._store.active),
+            ("archived", self._store.archived),
+            ("deleted", self._store.deleted),
+        ):
+            for identifier in events:
+                locations.setdefault(identifier, []).append(state)
+        for identifier, states in locations.items():
+            if len(states) > 1:
+                report = reports.setdefault(identifier, {"identifier": identifier, "issues": []})
+                report["issues"].append("duplicate_catalog_identifier")
+        known_identifiers = set(locations)
+        for event in all_events.values():
+            for reference in event.associations:
+                if reference not in known_identifiers:
+                    report = reports.setdefault(
+                        event.identifier, {"identifier": event.identifier, "issues": []}
+                    )
+                    report["issues"].append(f"missing_reference:{reference}")
+                if reference == event.identifier:
+                    report = reports.setdefault(
+                        event.identifier, {"identifier": event.identifier, "issues": []}
+                    )
+                    report["issues"].append("self_reference")
+
+        mode = "stress" if self._stress_mode else "normal"
+        expected_unbalance = []
+        errors = []
+        for report in reports.values():
+            report["issues"] = sorted(set(report["issues"]))
+            if "balance" in report["issues"] and mode == "stress":
+                report["expected_imbalance"] = True
+                expected_unbalance.append(report["identifier"])
+            blocking_issues = [issue for issue in report["issues"] if issue != "balance"]
+            if mode == "normal" and "balance" in report["issues"]:
+                blocking_issues.append("balance")
+            if blocking_issues:
+                errors.append({**report, "issues": blocking_issues})
+
+        valid = not errors and (mode == "stress" or audit["balanced"])
+        return {
+            "valid": valid,
+            "mode": mode,
+            "nodes_checked": audit["nodes"],
+            "tree": audit,
+            "event_reports": sorted(reports.values(), key=lambda item: item["identifier"]),
+            "inconsistent_events": errors,
+            "expected_unbalance_events": sorted(expected_unbalance),
+            "references_valid": not any(
+                issue.startswith("missing_reference:")
+                or issue in {"self_reference", "duplicate_catalog_identifier"}
+                for report in reports.values() for issue in report["issues"]
+            ),
+        }
+
     def compare_structures(self):
         return self._performance_queries.compare_structures(self._store.active.values())
 
@@ -613,20 +741,72 @@ class EventCatalog:
         """Devuelve cuantas acciones pueden deshacerse actualmente."""
         return self._history.count()
 
+    def history_report(self, limit=20):
+        """Explica los cambios de métricas de las acciones aún deshacibles."""
+        entries = self._history.export()
+        recent = entries[-limit:]
+        start = len(entries) - len(recent)
+        actions = []
+        for offset, (name, before_snapshot) in enumerate(recent, start=start):
+            after_metrics = (
+                entries[offset + 1][1]["metrics"]
+                if offset + 1 < len(entries)
+                else self.metrics()
+            )
+            before_metrics = before_snapshot["metrics"]
+            def flatten_metrics(metrics):
+                values = {
+                    key: metrics.get(key, 0)
+                    for key in (
+                        "active", "historical", "archived", "deleted", "height", "leaves",
+                        "pending", "accepted_corrections", "discarded_reports", "conflicts",
+                        "bulk_archives", "archived_events", "costly_access_events",
+                    )
+                }
+                values.update({
+                    f"priority_{priority}": count
+                    for priority, count in metrics.get("priority_counts", {}).items()
+                })
+                values.update({
+                    f"case_{case}": count
+                    for case, count in metrics.get("rotation_cases", {}).items()
+                })
+                values.update({
+                    f"rotation_{direction}": count
+                    for direction, count in metrics.get("simple_rotations", {}).items()
+                })
+                return values
+
+            before_values = flatten_metrics(before_metrics)
+            after_values = flatten_metrics(after_metrics)
+            actions.append({
+                "action": name,
+                "metrics_before": before_values,
+                "metrics_after": after_values,
+                "traversals_before": before_metrics.get("traversals", {}),
+                "traversals_after": after_metrics.get("traversals", {}),
+                "changes": {
+                    key: after_values.get(key, 0) - before_values.get(key, 0)
+                    for key in before_values.keys() | after_values.keys()
+                    if isinstance(before_values.get(key, 0), (int, float))
+                    and isinstance(after_values.get(key, 0), (int, float))
+                },
+            })
+        return {"actions_available_to_undo": len(entries), "actions": actions}
+
     def pending_reports_count(self):
         """Devuelve cuantos reportes quedan en la cola de procesamiento."""
         return self._reports.pending_count()
 
     def metrics(self):
-        """Calcula conteos de estado, prioridad critica y atencion pendiente."""
-        events = list(self._store.active.values())
-        return {
-            "active": len(events),
-            "archived": len(self._store.archived),
-            "deleted": len(self._store.deleted),
-            "priority_3": sum(event.priority == 3 for event in events),
-            "pending": sum(event.attention == AttentionState.PENDING for event in events),
-        }
+        """Delega el calculo puro de indicadores al servicio de métricas."""
+        return self._metrics.calculate(
+            self._store.active,
+            self._store.archived,
+            self._store.deleted,
+            self._avl_index.tree.getRoot(),
+            self._indicators,
+        )
 
     def tree_data(self):
         """Serializa el AVL de eventos activos con datos de dominio completos."""

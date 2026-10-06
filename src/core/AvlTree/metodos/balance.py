@@ -1,12 +1,12 @@
 """Calculo de alturas, factores de balance y reparacion de un AVL."""
 
 from .rotaciones import giroSimpleDerecha, giroSimpleIzquierda
+from src.core.AvlTree.rotation_tracker import record_case
 
 
 def get_height(node):
     """Devuelve cero para un enlace vacio y la altura real para un nodo."""
-    # Tratar un enlace vacio como altura cero evita condicionales en cada formula.
-    return 0 if node is None else node.getHeight()
+    return -1 if node is None else node.getHeight()
 
 
 def update_height(node):
@@ -58,6 +58,7 @@ def check_balance(node):
     update_height(node)
     # Una sola cadena puede requerir una rotacion simple o doble.
     case = balance_case(node)
+    record_case(case)
     if case == "LL":
         return giroSimpleDerecha(node)
     if case == "RR":

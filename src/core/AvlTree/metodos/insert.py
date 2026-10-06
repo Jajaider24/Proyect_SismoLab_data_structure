@@ -38,7 +38,7 @@ def insert_node(current_root, node, rebalance=True):
     """Inserta ``node`` y devuelve ``(nueva_raiz, insertado)``."""
     if current_root is None:
         node.setParent(None)
-        node.setHeight(1)
+        node.setHeight(0)
         return node, True
     if _same_order_values(current_root, node):
         return current_root, False

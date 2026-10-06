@@ -248,7 +248,7 @@ class EventPerformanceQueries:
     def _avl_metrics(root):
         def visit(node):
             if node is None:
-                return 0, 0, 0
+                return -1, 0, 0
             left_height, left_leaves, left_nodes = visit(node.getLeftChild())
             right_height, right_leaves, right_nodes = visit(node.getRightChild())
             leaves = (1 if node.getLeftChild() is None and node.getRightChild() is None

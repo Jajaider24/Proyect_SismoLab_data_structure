@@ -49,8 +49,8 @@ class Node:
 
         # Estos atributos son internos y sostienen la estructura AVL.
         self.parent = None
-        # Una hoja mide un nivel; los hijos inexistentes tienen altura cero.
-        self.height = 1
+        # La altura contractual de una hoja es cero y la de un enlace vacío -1.
+        self.height = 0
         # La raiz inicia en 1; cada hijo suma uno respecto a su padre.
         self.profundidad_nodo = 1
         self.LeftChild = None

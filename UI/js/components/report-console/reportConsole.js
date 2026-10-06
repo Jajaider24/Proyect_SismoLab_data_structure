@@ -14,6 +14,9 @@ export function initReportConsole({ onRequestRefresh } = {}) {
   const stressDelay = document.querySelector("#stress-delay");
   const stressModeButton = document.querySelector("#stress-mode");
   const recoverTreeButton = document.querySelector("#recover-tree");
+  const verifyTreeButton = document.querySelector("#verify-tree");
+  const auditSummary = document.querySelector("#structure-audit-summary");
+  const auditEvents = document.querySelector("#structure-audit-events");
   const stressStatus = document.querySelector("#stress-status");
   const stressAudit = document.querySelector("#stress-audit");
 
@@ -91,7 +94,7 @@ export function initReportConsole({ onRequestRefresh } = {}) {
       stressStatus.parentElement?.classList.toggle("is-stress", stressMode);
       stressStatus.parentElement?.classList.toggle(
         "is-unbalanced",
-        !statusData.audit?.balanced,
+        !stressMode && !statusData.audit?.balanced,
       );
     }
     if (stressModeButton) {
@@ -102,7 +105,9 @@ export function initReportConsole({ onRequestRefresh } = {}) {
     if (stressAudit) {
       stressAudit.textContent = statusData.audit?.balanced
         ? "AVL equilibrado"
-        : "AVL desequilibrado · requiere recuperación";
+        : stressMode
+          ? "Desbalance esperado · verificar orden y metadatos"
+          : "AVL desequilibrado · requiere recuperación";
     }
   }
 
@@ -259,6 +264,59 @@ export function initReportConsole({ onRequestRefresh } = {}) {
       showReportMessage(`[${error.status || 500}] ${error.message}`, true);
     } finally {
       recoverTreeButton.disabled = false;
+    }
+  });
+
+  verifyTreeButton?.addEventListener("click", async () => {
+    verifyTreeButton.disabled = true;
+    if (auditSummary) auditSummary.textContent = "Verificando estructura y referencias…";
+    if (auditEvents) auditEvents.replaceChildren();
+    try {
+      const audit = await treeService.verifyStructure();
+      const summary = audit.valid
+        ? `Estructura válida en modo ${audit.mode}. ${audit.nodes_checked} nodos revisados.`
+        : `Se encontraron ${audit.inconsistent_events.length} evento(s) inconsistente(s) en modo ${audit.mode}.`;
+      if (auditSummary) {
+        auditSummary.textContent = summary;
+        auditSummary.classList.toggle("structure-audit-summary-error", !audit.valid);
+        auditSummary.classList.toggle("structure-audit-summary-ok", audit.valid);
+      }
+      const rows = audit.inconsistent_events.map((item) => ({
+        ...item,
+        expected_imbalance: false,
+      }));
+      audit.expected_unbalance_events.forEach((identifier) => {
+        const item = audit.event_reports.find((entry) => entry.identifier === identifier);
+        if (item) rows.push({ ...item, expected_imbalance: true });
+      });
+      rows.forEach((item) => {
+        const row = document.createElement("li");
+        const issues = item.expected_imbalance
+          ? `desbalance esperado en estrés (BF ${item.balance_factor})`
+          : item.issues.join(", ");
+        const details = [];
+        if (item.issues.includes("height")) {
+          details.push(`altura guardada ${item.stored_height}, recalculada ${item.expected_height}`);
+        }
+        if (item.issues.includes("depth")) {
+          details.push(`profundidad guardada ${item.depth}, esperada ${item.expected_depth}`);
+        }
+        if (item.issues.includes("balance") && !item.expected_imbalance) {
+          details.push(`factor de balance ${item.balance_factor}`);
+        }
+        row.textContent = `Evento #${item.identifier}: ${issues}${details.length ? ` · ${details.join(" · ")}` : ""}`;
+        auditEvents?.append(row);
+      });
+      if (auditSummary && audit.valid && audit.expected_unbalance_events.length) {
+        auditSummary.textContent += ` Desbalance esperado en ${audit.expected_unbalance_events.length} evento(s); orden y metadatos válidos.`;
+      }
+    } catch (error) {
+      if (auditSummary) {
+        auditSummary.textContent = `[${error.status || 500}] ${error.message}`;
+        auditSummary.classList.add("structure-audit-summary-error");
+      }
+    } finally {
+      verifyTreeButton.disabled = false;
     }
   });
 

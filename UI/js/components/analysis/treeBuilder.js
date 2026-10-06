@@ -1,5 +1,5 @@
 function height(node) {
-  return node?.height || 0;
+  return node?.height ?? -1;
 }
 
 function updateHeight(node) {
@@ -56,7 +56,7 @@ function insert(root, node, balanced) {
 }
 
 function measure(root) {
-  if (!root) return { height: 0, leaves: 0, nodes: 0 };
+  if (!root) return { height: -1, leaves: 0, nodes: 0 };
   const left = measure(root.left);
   const right = measure(root.right);
   return {
@@ -84,7 +84,7 @@ export function buildComparisonTrees(comparison, orderName) {
       priority: Number(key[0]),
       magnitude: Number(key[1]),
       key,
-      height: 1,
+      height: 0,
       left: null,
       right: null,
     });

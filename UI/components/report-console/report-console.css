@@ -117,3 +117,17 @@
   background: #fff8e8;
   border-color: #ecd994;
 }
+.structure-audit {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line, #cfe1dc);
+  border-radius: 12px;
+  background: #f7fbf9;
+}
+
+.structure-audit h3 { margin: 0 0 0.4rem; }
+.structure-audit-events { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+.structure-audit-events:empty { display: none; }
+.structure-audit-events li { margin: 0.35rem 0; }
+.structure-audit-summary-error { color: #a33123; }
+.structure-audit-summary-ok { color: #087d73; }

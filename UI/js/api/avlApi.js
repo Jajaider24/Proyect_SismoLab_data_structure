@@ -55,11 +55,13 @@ export const avlApi = {
       body: JSON.stringify(params),
     }),
   undo: () => request("/undo", { method: "POST" }),
+  getHistory: () => request("/history"),
   enqueueReport: (report) =>
     request("/reports", { method: "POST", body: JSON.stringify(report) }),
   processReports: () => request("/reports/process", { method: "POST" }),
   processReportStep: () => request("/reports/process/step", { method: "POST" }),
   getMode: () => request("/mode"),
+  verifyStructure: () => request("/verify"),
   setMode: (stress) =>
     request("/mode", {
       method: "POST",

@@ -29,6 +29,8 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 - `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
 - `POST /events/undo` deshace la ultima accion.
 - `GET /events/history` informa cuantas acciones quedan en la pila.
+- `GET /events/verify` comprueba orden global por K, unicidad, referencias,
+  enlaces, alturas y balance y devuelve inconsistencias por identificador.
 - `GET /events/scenario` consulta reloj, parametros, modo y metricas.
 - `PUT /events/scenario/parameters` cambia el umbral de archivo o las zonas
   pobladas; cada cambio confirmado se registra como una accion.
@@ -112,6 +114,22 @@ R))` para `V` versiones guardadas. Esta representacion favorece la claridad y la
 exactitud para escenarios de simulacion de tamaño moderado; catálogos grandes
 requeririan reemplazar los snapshots completos por cambios inversos o snapshots
 con copy-on-write.
+
+## Auditoría e indicadores
+
+Inicio muestra eventos activos e históricos, altura (vacío -1, hoja 0), hojas,
+prioridades, pendientes, correcciones aceptadas, descartes, conflictos, archivos
+masivos y rotaciones. También expone recorridos inorden, preorden, postorden y
+por niveles. LR/RL cuentan como un caso doble y dos giros elementales. El acceso
+costoso se define como evento P3 a profundidad mayor que 2, el límite por defecto
+de la consulta de costo.
+
+**Verificar estructura** está en Reportes y funciona en ambos modos. Revisa los
+límites globales de K, unicidad, referencias, enlaces, alturas y balance; en modo
+estrés separa el desbalance esperado de los errores de orden o metadatos.
+`GET /events/history` explica métricas anteriores y posteriores por acción. Los
+contadores pertenecen a cada snapshot, por lo que undo y restauración recuperan
+sus valores.
 
 ## Pruebas
 

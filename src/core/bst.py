@@ -53,9 +53,9 @@ class BinarySearchTree:
     def metrics(self):
         """Calcula altura, hojas y cantidad de nodos en una pasada."""
         if self.root is None:
-            return {"height": 0, "leaves": 0, "nodes": 0}
+            return {"height": -1, "leaves": 0, "nodes": 0}
         height = leaves = nodes = 0
-        pending = [(self.root, 1)]
+        pending = [(self.root, 0)]
         while pending:
             node, depth = pending.pop()
             nodes += 1

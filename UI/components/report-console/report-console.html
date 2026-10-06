@@ -88,6 +88,9 @@
       <button id="recover-tree" type="button" class="review">
         Recuperar AVL
       </button>
+      <button id="verify-tree" type="button" class="secondary">
+        Verificar estructura
+      </button>
     </div>
   </form>
   <p id="report-message" class="message" aria-live="polite"></p>
@@ -96,6 +99,13 @@
     ><span id="stress-audit">AVL equilibrado</span>
   </div>
   <div id="report-queue" class="report-queue" aria-live="polite"></div>
+  <section class="structure-audit" aria-labelledby="structure-audit-title">
+    <h3 id="structure-audit-title">Auditoría de estructura</h3>
+    <p id="structure-audit-summary" class="muted" aria-live="polite">
+      Verifica orden global, referencias, alturas y balance en cualquier modo.
+    </p>
+    <ul id="structure-audit-events" class="structure-audit-events"></ul>
+  </section>
   <div id="report-results" class="report-results" aria-live="polite">
     <p class="muted">Los resultados de cada paso aparecerán aquí.</p>
   </div>

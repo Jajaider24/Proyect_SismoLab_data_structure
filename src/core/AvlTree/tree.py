@@ -4,7 +4,7 @@ from src.core.AvlTree.metodos.eliminar import delete_node
 from src.core.AvlTree.metodos.insert import insert_node
 from src.core.AvlTree.metodos.balance import balance_factor, update_depths, update_height
 from src.core.AvlTree.metodos.rotaciones import giroSimpleDerecha, giroSimpleIzquierda
-from src.core.AvlTree.rotation_tracker import RotationTracker
+from src.core.AvlTree.rotation_tracker import RotationTracker, record_case
 
 
 class AVL_tree:
@@ -47,43 +47,80 @@ class AVL_tree:
                 or self._find_by_identifier(current_root.getRightChild(), identifier))
 
     def audit(self):
-        """Audita orden BST, alturas, profundidades y balance sin modificar."""
-        violations = []
-        nodes = 0
-
-        def visit(node, lower=None, upper=None, expected_depth=1):
-            nonlocal nodes
+        """Revisa limites globales, ids unicos, alturas y balance por nodo."""
+        reports = {}
+        identifiers = set()
+        visited = set()
+        heights = {}
+        node_count = 0
+        unbalanced = False
+        stack = [(self.root, None, None, 1, False)]
+        while stack:
+            node, lower, upper, expected_depth, postorder = stack.pop()
             if node is None:
-                return 0
-            nodes += 1
-            key = node.get_order_key()
-            if lower is not None and key <= lower:
-                violations.append("bst-left-right")
-            if upper is not None and key >= upper:
-                violations.append("bst-order")
-            left_height = visit(
-                node.getLeftChild(), lower, key, expected_depth + 1
-            )
-            right_height = visit(
-                node.getRightChild(), key, upper, expected_depth + 1
-            )
-            if node.getNodeDepth() != expected_depth:
-                violations.append("depth")
-            expected = 1 + max(left_height, right_height)
-            if node.getHeight() != expected:
-                violations.append("height")
-            if abs(left_height - right_height) > 1:
-                violations.append("balance")
-            return expected
+                continue
+            marker = id(node)
+            identifier = node.getIdentifier()
+            if not postorder:
+                if marker in visited:
+                    reports.setdefault(identifier, {"identifier": identifier, "issues": []})["issues"].append(
+                        "cycle_or_shared_node"
+                    )
+                    continue
+                visited.add(marker)
+                node_count += 1
+                reports[marker] = {"identifier": identifier, "issues": []}
+                issues = reports[marker]["issues"]
+                key = node.get_order_key()
+                if (lower is not None and key <= lower) or (upper is not None and key >= upper):
+                    issues.append("global_order")
+                if identifier in identifiers:
+                    issues.append("duplicate_identifier")
+                identifiers.add(identifier)
+                if (node.getLeftChild() is not None and node.getLeftChild().getParent() is not node
+                        or node.getRightChild() is not None and node.getRightChild().getParent() is not node):
+                    issues.append("parent_reference")
+                if expected_depth == 1 and node.getParent() is not None:
+                    issues.append("root_parent_reference")
+                stack.append((node, lower, upper, expected_depth, True))
+                stack.append((node.getRightChild(), key, upper, expected_depth + 1, False))
+                stack.append((node.getLeftChild(), lower, key, expected_depth + 1, False))
+                continue
 
-        visit(self.root)
+            left = node.getLeftChild()
+            right = node.getRightChild()
+            left_height = heights.get(id(left), -1) if left is not None else -1
+            right_height = heights.get(id(right), -1) if right is not None else -1
+            expected_height = 1 + max(left_height, right_height)
+            factor = left_height - right_height
+            heights[marker] = expected_height
+            issues = reports[marker]["issues"]
+            if node.getHeight() != expected_height:
+                issues.append("height")
+            if node.getNodeDepth() != expected_depth:
+                issues.append("depth")
+            if abs(factor) > 1:
+                unbalanced = True
+                issues.append("balance")
+            if issues:
+                reports[marker].update({
+                    "stored_height": node.getHeight(),
+                    "expected_height": expected_height,
+                    "balance_factor": factor,
+                    "depth": node.getNodeDepth(),
+                    "expected_depth": expected_depth,
+                })
+
+        event_reports = [report for report in reports.values() if report["issues"]]
+        issue_codes = {issue for report in event_reports for issue in report["issues"]}
         return {
-            "balanced": not any(item == "balance" for item in violations),
-            "valid_bst": not any(item.startswith("bst") for item in violations),
-            "valid_heights": "height" not in violations,
-            "valid_depths": "depth" not in violations,
-            "nodes": nodes,
-            "violations": violations,
+            "balanced": not unbalanced,
+            "valid_bst": not bool(issue_codes & {"global_order", "duplicate_identifier", "cycle_or_shared_node"}),
+            "valid_heights": "height" not in issue_codes,
+            "valid_depths": not bool(issue_codes & {"depth", "parent_reference", "root_parent_reference"}),
+            "nodes": node_count,
+            "violations": sorted(issue_codes),
+            "events": event_reports,
         }
 
     def recover(self):
@@ -102,11 +139,17 @@ class AVL_tree:
             while abs(balance_factor(node)) > 1:
                 if balance_factor(node) > 1:
                     if balance_factor(node.getLeftChild()) < 0:
+                        record_case("LR")
                         giroSimpleIzquierda(node.getLeftChild())
+                    else:
+                        record_case("LL")
                     node = giroSimpleDerecha(node)
                 else:
                     if balance_factor(node.getRightChild()) > 0:
+                        record_case("RL")
                         giroSimpleDerecha(node.getRightChild())
+                    else:
+                        record_case("RR")
                     node = giroSimpleIzquierda(node)
                 update_height(node)
             return node
@@ -121,4 +164,9 @@ class AVL_tree:
                 if (audit["valid_bst"] and audit["balanced"]
                         and audit["valid_heights"] and audit["valid_depths"]):
                     break
-        return {"rotations": tracker.events, "visited": visited, "audit": self.audit()}
+        return {
+            "rotations": tracker.events,
+            "cases": tracker.cases,
+            "visited": visited,
+            "audit": self.audit(),
+        }
