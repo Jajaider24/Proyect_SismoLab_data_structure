@@ -1,4 +1,4 @@
-export function renderTree(treeData, onSelect = () => {}) {
+export function renderTree(treeData, onSelect = () => {}, costDepth = null) {
   const canvas = d3.select("#tree-canvas");
   const emptyState = document.querySelector("#tree-empty");
   canvas.selectAll("*").remove();
@@ -22,7 +22,11 @@ export function renderTree(treeData, onSelect = () => {}) {
     .selectAll("path")
     .data(root.links())
     .join("path")
-    .attr("class", "link")
+    .attr("class", (link) => (
+      costDepth !== null && (link.target.data.profundidad_nodo - 2) >= costDepth
+        ? "link cost-exceeded"
+        : "link"
+    ))
     .attr("opacity", 0)
     .attr(
       "d",
@@ -70,4 +74,3 @@ export function renderTree(treeData, onSelect = () => {}) {
     .delay((d) => d.depth * 110)
     .attr("opacity", 1);
 }
-

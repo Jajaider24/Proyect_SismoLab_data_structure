@@ -21,7 +21,7 @@ def giroSimpleDerecha(superior):
         return superior
     record_rotation("right")
     # Import local: balance importa estas rotaciones y asi evitamos un ciclo.
-    from .balance import update_height
+    from .balance import update_depths, update_height
     mitad = superior.getLeftChild()
     aux = mitad.getRightChild()
     parent = superior.getParent()
@@ -35,6 +35,7 @@ def giroSimpleDerecha(superior):
     # La altura se actualiza desde la unica implementacion del modulo balance.
     update_height(superior)
     update_height(mitad)
+    update_depths(mitad, 1 if parent is None else parent.getNodeDepth() + 1)
     return mitad
 
 
@@ -43,7 +44,7 @@ def giroSimpleIzquierda(superior):
     if superior is None or superior.getRightChild() is None:
         return superior
     record_rotation("left")
-    from .balance import update_height
+    from .balance import update_depths, update_height
     mitad = superior.getRightChild()
     aux = mitad.getLeftChild()
     parent = superior.getParent()
@@ -56,4 +57,5 @@ def giroSimpleIzquierda(superior):
         aux.setParent(superior)
     update_height(superior)
     update_height(mitad)
+    update_depths(mitad, 1 if parent is None else parent.getNodeDepth() + 1)
     return mitad

@@ -102,6 +102,7 @@ class AVLTreeService:
                 "value": node.getIdentifier(),
                 "priority": node.getPriority(),
                 "height": node.getHeight(),
+                "profundidad_nodo": node.getNodeDepth(),
                 "balance_factor": balance_factor(node),
                 "children": children,
                 "attributes": attributes,
@@ -116,11 +117,11 @@ class AVLTreeService:
         """Convierte el arbol a jerarquia D3 con todos los datos del nodo."""
         return self.serialize_tree()
 
-    def rebuild(self, nodes):
-        """Reinicia el arbol e inserta una coleccion de nodos ya validados."""
+    def rebuild(self, nodes, rebalance=True):
+        """Reinicia el arbol e inserta nodos validados con el modo indicado."""
         self.clear()
         for node in nodes:
-            self.insert_node(node)
+            self.insert_node(node, rebalance=rebalance)
 
     def clear(self):
         """Reinicia la instancia en memoria."""

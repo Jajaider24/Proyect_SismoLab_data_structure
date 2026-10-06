@@ -16,6 +16,14 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 - `POST /events/{identifier}/review` cambia solo el estado de atencion.
 - `DELETE /events/{identifier}` elimina individualmente y conserva el historico.
 - `POST /events/{identifier}/archive` archiva la rama seleccionada.
+- `POST /events/archive/old/preview` selecciona una rama cuyos eventos son de
+  prioridad baja y superan la antigüedad mínima (72 horas por defecto); acepta
+  `threshold_hours` para configurar el umbral. La interfaz muestra la lista,
+  el tamaño y el motivo antes de permitir confirmar el archivo.
+- `POST /events/archive/old` ejecuta el archivo confirmado usando
+  `threshold_hours` y `expected_identifiers`; si el árbol cambió desde la
+  previsualización, la operación se rechaza sin modificar el catálogo. El
+  archivo completo se deshace con una sola acción.
 - `POST /events/reports` procesa reportes por revision.
 - `POST /events/reports/process/step` procesa exactamente un reporte FIFO.
 - `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.

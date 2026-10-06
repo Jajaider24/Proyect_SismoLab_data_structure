@@ -36,6 +36,19 @@ export const avlApi = {
     request(`/${encodeURIComponent(identifier)}/archive`, {
       method: "POST",
     }),
+  previewOldArchive: (thresholdHours) =>
+    request("/archive/old/preview", {
+      method: "POST",
+      body: JSON.stringify({ threshold_hours: thresholdHours }),
+    }),
+  archiveOld: (thresholdHours, expectedIdentifiers) =>
+    request("/archive/old", {
+      method: "POST",
+      body: JSON.stringify({
+        threshold_hours: thresholdHours,
+        expected_identifiers: expectedIdentifiers,
+      }),
+    }),
   replicas: (identifier, params) =>
     request(`/${encodeURIComponent(identifier)}/replicas`, {
       method: "POST",

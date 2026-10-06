@@ -3,7 +3,9 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
+from src.core.AvlTree.rotation_tracker import RotationTracker
 from src.models.event import AttentionState, Event, EventState
+from src.models.simulation_clock import SimulationClock
 from src.services.eventCatalog_Service import EventCatalog
 from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
 
@@ -70,6 +72,158 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(self.catalog.process_report(newer)['status'], 'updated')
         self.assertEqual(self.catalog.get(1).state, EventState.ACTIVE)
 
+    def test_old_archive_uses_strict_age_and_validates_threshold(self):
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        catalog = EventCatalog(clock=SimulationClock(now))
+        catalog.create(self.event(when=now - timedelta(hours=72)))
+        actions_before = catalog.history_count()
+
+        preview = catalog.preview_old_branch_archive()
+        self.assertFalse(preview["eligible"])
+        self.assertEqual(preview["threshold_hours"], 72)
+        result = catalog.archive_old_branch(72, [])
+        self.assertFalse(result["archived"])
+        self.assertEqual(catalog.metrics()["active"], 1)
+        self.assertEqual(catalog.metrics()["archived"], 0)
+        self.assertEqual(catalog.history_count(), actions_before)
+
+        with self.assertRaises(EventValidationError):
+            catalog.preview_old_branch_archive(0)
+        with self.assertRaises(EventValidationError):
+            catalog.preview_old_branch_archive(float("inf"))
+        with self.assertRaises(EventValidationError):
+            catalog.preview_old_branch_archive(10 ** 10000)
+
+        fresh_catalog = EventCatalog(clock=SimulationClock(now))
+        fresh_catalog.create(self.event(when=now - timedelta(hours=72, seconds=1)))
+        self.assertTrue(fresh_catalog.preview_old_branch_archive()["eligible"])
+
+        priority_catalog = EventCatalog(clock=SimulationClock(now))
+        priority_catalog.create(
+            self.event(
+                magnitude=4.5,
+                depth=100,
+                when=now - timedelta(hours=100),
+            )
+        )
+        self.assertEqual(priority_catalog.get(1).priority, 2)
+        self.assertFalse(priority_catalog.preview_old_branch_archive()["eligible"])
+
+        whole_tree_catalog = EventCatalog(clock=SimulationClock(now))
+        whole_tree_catalog.create(
+            self.event(when=now - timedelta(hours=100))
+        )
+        whole_tree_preview = whole_tree_catalog.preview_old_branch_archive()
+        self.assertEqual(whole_tree_preview["identifiers"], [1])
+        whole_tree_catalog.archive_old_branch(
+            72, whole_tree_preview["identifiers"]
+        )
+        self.assertIsNone(whole_tree_catalog.response()["tree"])
+        whole_tree_catalog.undo()
+        self.assertEqual(whole_tree_catalog.metrics()["active"], 1)
+
+    def test_old_archive_selects_largest_branch_and_uses_id_tiebreak(self):
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        catalog = EventCatalog(clock=SimulationClock(now))
+        for identifier in (4, 2, 6, 1, 3, 5, 7):
+            age = 24 if identifier == 4 else 100
+            catalog.create(
+                self.event(
+                    identifier=identifier,
+                    when=now - timedelta(hours=age),
+                )
+            )
+
+        preview = catalog.preview_old_branch_archive(72)
+        self.assertEqual(preview["eligible_branches"], 6)
+        self.assertEqual(preview["root_identifier"], 6)
+        self.assertEqual(preview["count"], 3)
+        self.assertEqual(preview["identifiers"], [6, 5, 7])
+        self.assertIn("mayor identificador (6)", preview["reason"])
+
+        archived_associations = {
+            identifier: catalog.get(identifier).associations
+            for identifier in preview["identifiers"]
+        }
+        actions_before = catalog.history_count()
+        rotations = RotationTracker()
+        catalog._rotation_tracker = rotations
+        with rotations:
+            result = catalog.archive_old_branch(72, preview["identifiers"])
+        catalog._rotation_tracker = None
+        self.assertTrue(result["archived"])
+        self.assertEqual(result["archived_identifiers"], [6, 5, 7])
+        self.assertEqual(catalog.metrics()["active"], 4)
+        self.assertEqual(catalog.metrics()["archived"], 3)
+        self.assertEqual(catalog.history_count(), actions_before + 1)
+        self.assertTrue(rotations.events)
+        for identifier in preview["identifiers"]:
+            archived_event = catalog.get(identifier)
+            self.assertEqual(archived_event.state, EventState.ARCHIVED)
+            self.assertEqual(archived_event.associations, archived_associations[identifier])
+
+        catalog.undo()
+        self.assertEqual(catalog.metrics()["active"], 7)
+        self.assertEqual(catalog.metrics()["archived"], 0)
+        self.assertEqual(catalog.get(6).state, EventState.ACTIVE)
+
+    def test_old_archive_prefers_deeper_subtree_when_sizes_tie(self):
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        catalog = EventCatalog(clock=SimulationClock(now))
+        recent_identifiers = {4, 6, 8}
+        for identifier in (8, 4, 12, 2, 6, 10, 1, 5, 7):
+            age = 24 if identifier in recent_identifiers else 100
+            catalog.create(
+                self.event(
+                    identifier=identifier,
+                    when=now - timedelta(hours=age),
+                )
+            )
+
+        preview = catalog.preview_old_branch_archive(72)
+        self.assertEqual(preview["count"], 2)
+        self.assertEqual(preview["root_identifier"], 2)
+        self.assertEqual(preview["root_depth"], 3)
+        self.assertEqual(preview["identifiers"], [2, 1])
+        self.assertIn("mayor profundidad (3)", preview["reason"])
+
+    def test_old_archive_keeps_stress_order_and_rejects_stale_preview(self):
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        catalog = EventCatalog(clock=SimulationClock(now))
+        catalog.set_stress_mode(True)
+        for identifier in range(1, 6):
+            age = 24 if identifier == 1 else 100
+            catalog.create(
+                self.event(
+                    identifier=identifier,
+                    when=now - timedelta(hours=age),
+                )
+            )
+
+        preview = catalog.preview_old_branch_archive(72)
+        self.assertEqual(preview["identifiers"], [2, 3, 4, 5])
+        catalog.create(
+            self.event(
+                identifier=6,
+                when=now - timedelta(hours=100),
+            )
+        )
+        with self.assertRaises(EventValidationError):
+            catalog.archive_old_branch(72, preview["identifiers"])
+        self.assertEqual(catalog.metrics()["active"], 6)
+
+        refreshed_preview = catalog.preview_old_branch_archive(72)
+        self.assertEqual(refreshed_preview["identifiers"], [2, 3, 4, 5, 6])
+        result = catalog.archive_old_branch(
+            72, refreshed_preview["identifiers"]
+        )
+        self.assertEqual(result["archived_identifiers"], [2, 3, 4, 5, 6])
+        self.assertEqual(catalog.tree.getRoot().getIdentifier(), 1)
+        self.assertEqual(catalog.status()["mode"], "stress")
+        catalog.undo()
+        self.assertFalse(catalog.status()["audit"]["balanced"])
+        self.assertEqual(catalog.metrics()["active"], 6)
+
     def test_associations_are_recomputed(self):
         self.catalog.create(self.event())
         self.catalog.create(self.event(identifier=2, when=self.when + timedelta(minutes=10)))
@@ -121,6 +275,16 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(self.catalog.tree.getRoot().getY(), 567.8)
         self.assertEqual(data["tree"]["attributes"]["x"], 123.4)
         self.assertEqual(data["tree"]["attributes"]["y"], 567.8)
+        self.assertEqual(data["tree"]["profundidad_nodo"], 1)
+
+    def test_tree_response_serializes_depth_after_rotations(self):
+        for identifier in (1, 2, 3):
+            self.catalog.create(self.event(identifier=identifier))
+
+        tree = self.catalog.response()["tree"]
+        self.assertEqual(tree["value"], 2)
+        self.assertEqual(tree["profundidad_nodo"], 1)
+        self.assertTrue(all(child["profundidad_nodo"] == 2 for child in tree["children"]))
 
     def test_replicas_filter_active_and_archived_by_time_and_distance(self):
         self.catalog.create(self.event(identifier=1, x=0, y=0, depth=0))

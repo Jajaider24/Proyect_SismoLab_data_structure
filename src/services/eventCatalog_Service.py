@@ -1,5 +1,7 @@
 """Fachada principal del catalogo de eventos sismicos."""
 
+import math
+
 from src.models.event import AttentionState, EventState
 from src.models.simulation_clock import SimulationClock
 from src.models.zone import ZoneClassifier
@@ -70,7 +72,10 @@ class EventCatalog:
 
     def _rebuild_tree(self):
         """Reconstruye el indice AVL desde eventos activos."""
-        self._avl_index.rebuild(self._store.active)
+        self._avl_index.rebuild(
+            self._store.active,
+            rebalance=not self._stress_mode,
+        )
         self._sync_associations()
 
     def _sync_associations(self):
@@ -117,7 +122,8 @@ class EventCatalog:
             before = self._avl_index.audit()
             result = self._avl_index.recover()
             after = result["audit"]
-            if not after["valid_bst"] or not after["balanced"] or not after["valid_heights"]:
+            if (not after["valid_bst"] or not after["balanced"]
+                    or not after["valid_heights"] or not after["valid_depths"]):
                 raise EventValidationError("la auditoria no confirma un AVL valido")
             self._stress_mode = False
             return {
@@ -191,6 +197,63 @@ class EventCatalog:
             self._remove_active(event_id)
         self._sync_associations()
         return [self.get(event_id) for event_id in identifiers]
+
+    @staticmethod
+    def _validate_archive_threshold(threshold_hours):
+        """Exige un umbral numerico, finito y estrictamente positivo."""
+        if (
+            isinstance(threshold_hours, bool)
+            or not isinstance(threshold_hours, (int, float))
+        ):
+            raise EventValidationError("threshold_hours debe ser un numero positivo y finito.")
+        try:
+            threshold = float(threshold_hours)
+        except OverflowError as error:
+            raise EventValidationError(
+                "threshold_hours debe ser un numero positivo y finito."
+            ) from error
+        if not math.isfinite(threshold) or threshold <= 0:
+            raise EventValidationError("threshold_hours debe ser un numero positivo y finito.")
+        return threshold
+
+    def preview_old_branch_archive(self, threshold_hours=72):
+        """Previsualiza la rama que cumple los criterios de archivo antiguo."""
+        threshold = self._validate_archive_threshold(threshold_hours)
+        selection = self._avl_index.select_old_branch(
+            self._store.active,
+            self._clock.now(),
+            threshold,
+        )
+        return {**selection, "threshold_hours": threshold}
+
+    def archive_old_branch(self, threshold_hours=72, expected_identifiers=None):
+        """Archiva la rama previsualizada como una unica accion deshacible.
+
+        Los identificadores esperados evitan ejecutar una previsualizacion
+        obsoleta. La lista se fija antes de mover eventos, pues cada borrado
+        puede rotar el AVL y cambiar la topologia restante.
+        """
+        if expected_identifiers is None:
+            raise EventValidationError("se requiere confirmar la lista previsualizada.")
+        preview = self.preview_old_branch_archive(threshold_hours)
+        if preview["identifiers"] != expected_identifiers:
+            raise EventValidationError(
+                "el arbol cambio desde la previsualizacion; vuelva a seleccionar la rama."
+            )
+        if not preview["eligible"]:
+            return {**preview, "archived": False}
+
+        fixed_identifiers = list(preview["identifiers"])
+        self._record("archive_old_branch")
+        for event_id in fixed_identifiers:
+            self._store.move_active_to_archived(event_id)
+            self._remove_active(event_id)
+        self._sync_associations()
+        return {
+            **preview,
+            "archived": True,
+            "archived_identifiers": fixed_identifiers,
+        }
 
     def process_report(self, report):
         """Procesa un reporte individual segun reglas de revision."""

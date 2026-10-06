@@ -51,6 +51,8 @@ class Node:
         self.parent = None
         # Una hoja mide un nivel; los hijos inexistentes tienen altura cero.
         self.height = 1
+        # La raiz inicia en 1; cada hijo suma uno respecto a su padre.
+        self.profundidad_nodo = 1
         self.LeftChild = None
         self.RightChild = None
 
@@ -138,6 +140,7 @@ class Node:
     def setParent(self, parent):
         """Asigna el padre actual del nodo dentro del AVL."""
         self.parent = parent
+        self.profundidad_nodo = 1 if parent is None else parent.getNodeDepth() + 1
 
     def getLeftChild(self):
         """Devuelve el hijo izquierdo del nodo."""
@@ -167,6 +170,16 @@ class Node:
         """Actualiza la altura AVL almacenada en el nodo."""
         self.height = height
 
+    def getNodeDepth(self):
+        """Devuelve la profundidad estructural del nodo dentro del AVL."""
+        return self.profundidad_nodo
+
+    def setNodeDepth(self, depth):
+        """Actualiza la profundidad estructural del nodo dentro del AVL."""
+        if not isinstance(depth, int) or depth < 1:
+            raise ValueError("profundidad_nodo debe ser un entero positivo.")
+        self.profundidad_nodo = depth
+
     def to_dict(self):
         """Devuelve los atributos de negocio para API y formulario de edicion."""
         return {
@@ -176,6 +189,7 @@ class Node:
             "profundidad_h": self.profundidad_h,
             "x": self.x,
             "y": self.y,
+            "profundidad_nodo": self.profundidad_nodo,
             "zona_poblada": self.zona_poblada,
             "fecha_hora": self.fecha_hora,
             "revision": self.revision,

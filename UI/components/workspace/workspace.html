@@ -11,6 +11,53 @@
         <span><i class="legend-dot priority-1"></i>P1 normal</span>
       </div>
     </div>
+    <form id="cost-to-reach-form" class="cost-to-reach-form">
+      <label for="cost-to-reach-depth">Profundidad mínima</label>
+      <input
+        id="cost-to-reach-depth"
+        type="number"
+        min="1"
+        step="1"
+        required
+        aria-label="Profundidad mínima para calcular el costo de llegada"
+      />
+      <button type="submit" class="secondary">Costo para llegar</button>
+    </form>
+    <section class="old-archive-panel" aria-label="Archivo automatico de ramas antiguas">
+      <div class="old-archive-heading">
+        <p class="section-kicker">Mantenimiento del índice</p>
+        <h3>Archivar rama de eventos antiguos</h3>
+      </div>
+      <form id="old-archive-form" class="old-archive-form">
+        <label for="old-archive-threshold">Antigüedad mínima (horas)</label>
+        <input
+          id="old-archive-threshold"
+          type="number"
+          min="0"
+          step="any"
+          value="72"
+          required
+        />
+        <button type="submit" class="secondary">Previsualizar rama elegible</button>
+      </form>
+      <div
+        id="old-archive-preview"
+        class="old-archive-preview"
+        aria-live="polite"
+        hidden
+      >
+        <div id="old-archive-preview-details"></div>
+        <button
+          id="old-archive-confirm"
+          type="button"
+          class="danger"
+          disabled
+        >
+          Archivar rama seleccionada
+        </button>
+      </div>
+      <p id="old-archive-message" class="message" aria-live="polite"></p>
+    </section>
     <div id="tree-empty" class="empty-state" hidden>
       <strong>El índice está vacío</strong>
       <span>Registra tu primer evento para visualizar el balance AVL.</span>

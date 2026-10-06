@@ -8,6 +8,10 @@ export const treeService = {
   review: async (identifier) => avlApi.review(identifier),
   delete: async (identifier) => avlApi.delete(identifier),
   archive: async (identifier) => avlApi.archive(identifier),
+  previewOldArchive: async (thresholdHours) =>
+    avlApi.previewOldArchive(thresholdHours),
+  archiveOld: async (thresholdHours, expectedIdentifiers) =>
+    avlApi.archiveOld(thresholdHours, expectedIdentifiers),
   replicas: async (identifier, params) => avlApi.replicas(identifier, params),
   undo: async () => avlApi.undo(),
   enqueueReport: async (report) => avlApi.enqueueReport(report),

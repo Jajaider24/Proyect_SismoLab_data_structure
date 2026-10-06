@@ -26,6 +26,15 @@ export function initInspector() {
   const deleteButton = document.querySelector("#delete-button");
   const reviewButton = document.querySelector("#review-button");
   const archiveButton = document.querySelector("#archive-button");
+  const oldArchiveForm = document.querySelector("#old-archive-form");
+  const oldArchiveThreshold = document.querySelector("#old-archive-threshold");
+  const oldArchivePreview = document.querySelector("#old-archive-preview");
+  const oldArchivePreviewDetails = document.querySelector(
+    "#old-archive-preview-details",
+  );
+  const oldArchiveConfirm = document.querySelector("#old-archive-confirm");
+  const oldArchiveMessage = document.querySelector("#old-archive-message");
+  let oldArchiveSelection = null;
 
   const lookupForm = document.querySelector("#lookup-form");
   const lookupId = document.querySelector("#lookup-id");
@@ -116,6 +125,112 @@ export function initInspector() {
 
   store.on("nodeSelected", handleNodeSelected);
   store.on("nodeDeselected", handleNodeDeselected);
+
+  function showOldArchivePreview(selection) {
+    oldArchivePreview.hidden = false;
+    oldArchivePreviewDetails.replaceChildren();
+    oldArchiveConfirm.disabled = !selection.eligible;
+
+    const summary = document.createElement("p");
+    if (selection.eligible) {
+      summary.textContent =
+        `Rama desde #${selection.root_identifier}: ${selection.count} evento(s), ` +
+        `con umbral de antigüedad > ${selection.threshold_hours} h. ` +
+        `Identificadores afectados: ${selection.identifiers.join(", ")}.`;
+    } else {
+      summary.textContent = "No hay una rama elegible para archivar.";
+    }
+    const reason = document.createElement("p");
+    reason.textContent = selection.reason;
+    oldArchivePreviewDetails.append(summary, reason);
+  }
+
+  // Cualquier cambio de datos invalida la previsualizacion para evitar archivar
+  // una rama distinta de la topologia que el usuario acaba de revisar.
+  store.on("data", () => {
+    if (!oldArchiveSelection) return;
+    oldArchiveSelection = null;
+    oldArchiveConfirm.disabled = true;
+    oldArchivePreview.hidden = true;
+    oldArchiveMessage.textContent =
+      "El árbol cambió; vuelve a seleccionar la rama antes de archivarla.";
+  });
+
+  oldArchiveThreshold.addEventListener("input", () => {
+    oldArchiveThreshold.setCustomValidity(
+      oldArchiveThreshold.valueAsNumber > 0
+        ? ""
+        : "El umbral debe ser un número positivo.",
+    );
+    if (!oldArchiveSelection) return;
+    oldArchiveSelection = null;
+    oldArchiveConfirm.disabled = true;
+    oldArchivePreview.hidden = true;
+    oldArchiveMessage.textContent =
+      "Cambió el umbral; vuelve a consultar la rama elegible.";
+  });
+
+  oldArchiveForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    oldArchiveThreshold.setCustomValidity(
+      oldArchiveThreshold.valueAsNumber > 0
+        ? ""
+        : "El umbral debe ser un número positivo.",
+    );
+    if (!oldArchiveForm.reportValidity()) return;
+    oldArchiveSelection = null;
+    oldArchiveConfirm.disabled = true;
+    setBusy(oldArchiveForm, true);
+    oldArchiveMessage.textContent = "";
+    try {
+      const selection = await treeService.previewOldArchive(
+        oldArchiveThreshold.valueAsNumber,
+      );
+      oldArchiveSelection = selection.eligible ? selection : null;
+      showOldArchivePreview(selection);
+      if (!selection.eligible) {
+        oldArchiveMessage.textContent = "No se modificó el estado del catálogo.";
+      }
+    } catch (error) {
+      oldArchivePreview.hidden = true;
+      oldArchiveMessage.textContent = `[${error.status || 500}] ${error.message}`;
+    } finally {
+      setBusy(oldArchiveForm, false);
+      oldArchiveConfirm.disabled = !oldArchiveSelection;
+    }
+  });
+
+  oldArchiveConfirm.addEventListener("click", async () => {
+    if (!oldArchiveSelection) return;
+    const selection = oldArchiveSelection;
+    setBusy(oldArchiveForm, true);
+    oldArchiveConfirm.disabled = true;
+    oldArchiveMessage.textContent = "";
+    try {
+      const result = await treeService.archiveOld(
+        selection.threshold_hours,
+        selection.identifiers,
+      );
+      oldArchiveSelection = null;
+      store.setData(result.data);
+      store.clearSelection();
+      store.addActivity(
+        "Rama antigua archivada",
+        `${result.archive.count} evento(s) desde #${result.archive.root_identifier}`,
+      );
+      oldArchiveMessage.textContent =
+        `${result.archive.count} evento(s) archivado(s).`;
+      showOldArchivePreview(result.archive);
+      oldArchiveConfirm.disabled = true;
+    } catch (error) {
+      oldArchiveSelection = null;
+      oldArchivePreview.hidden = true;
+      oldArchiveMessage.textContent = `[${error.status || 500}] ${error.message}`;
+    } finally {
+      setBusy(oldArchiveForm, false);
+      if (!oldArchiveSelection) oldArchiveConfirm.disabled = true;
+    }
+  });
 
   editForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -242,4 +357,3 @@ export function initInspector() {
 
   return { handleNodeSelected, handleNodeDeselected, readEditForm };
 }
-

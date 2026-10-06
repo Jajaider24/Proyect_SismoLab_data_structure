@@ -2,7 +2,7 @@
 
 from src.core.AvlTree.metodos.eliminar import delete_node
 from src.core.AvlTree.metodos.insert import insert_node
-from src.core.AvlTree.metodos.balance import balance_factor, update_height
+from src.core.AvlTree.metodos.balance import balance_factor, update_depths, update_height
 from src.core.AvlTree.metodos.rotaciones import giroSimpleDerecha, giroSimpleIzquierda
 from src.core.AvlTree.rotation_tracker import RotationTracker
 
@@ -23,6 +23,7 @@ class AVL_tree:
         self.root, inserted = insert_node(self.root, node, rebalance)
         if self.root is not None:
             self.root.setParent(None)
+            update_depths(self.root)
         return inserted
 
     def delete(self, identifier, rebalance=True):
@@ -33,6 +34,7 @@ class AVL_tree:
         self.root, deleted = delete_node(self.root, target, rebalance)
         if self.root is not None:
             self.root.setParent(None)
+            update_depths(self.root)
         return deleted
 
     def _find_by_identifier(self, current_root, identifier):
@@ -45,11 +47,11 @@ class AVL_tree:
                 or self._find_by_identifier(current_root.getRightChild(), identifier))
 
     def audit(self):
-        """Audita orden BST, alturas y factores sin modificar la estructura."""
+        """Audita orden BST, alturas, profundidades y balance sin modificar."""
         violations = []
         nodes = 0
 
-        def visit(node, lower=None, upper=None):
+        def visit(node, lower=None, upper=None, expected_depth=1):
             nonlocal nodes
             if node is None:
                 return 0
@@ -59,8 +61,14 @@ class AVL_tree:
                 violations.append("bst-left-right")
             if upper is not None and key >= upper:
                 violations.append("bst-order")
-            left_height = visit(node.getLeftChild(), lower, key)
-            right_height = visit(node.getRightChild(), key, upper)
+            left_height = visit(
+                node.getLeftChild(), lower, key, expected_depth + 1
+            )
+            right_height = visit(
+                node.getRightChild(), key, upper, expected_depth + 1
+            )
+            if node.getNodeDepth() != expected_depth:
+                violations.append("depth")
             expected = 1 + max(left_height, right_height)
             if node.getHeight() != expected:
                 violations.append("height")
@@ -73,6 +81,7 @@ class AVL_tree:
             "balanced": not any(item == "balance" for item in violations),
             "valid_bst": not any(item.startswith("bst") for item in violations),
             "valid_heights": "height" not in violations,
+            "valid_depths": "depth" not in violations,
             "nodes": nodes,
             "violations": violations,
         }
@@ -107,7 +116,9 @@ class AVL_tree:
                 self.root = recover_subtree(self.root)
                 if self.root is not None:
                     self.root.setParent(None)
+                    update_depths(self.root)
                 audit = self.audit()
-                if audit["valid_bst"] and audit["balanced"] and audit["valid_heights"]:
+                if (audit["valid_bst"] and audit["balanced"]
+                        and audit["valid_heights"] and audit["valid_depths"]):
                     break
         return {"rotations": tracker.events, "visited": visited, "audit": self.audit()}

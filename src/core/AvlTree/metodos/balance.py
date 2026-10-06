@@ -21,6 +21,15 @@ def update_height(node):
     return height
 
 
+def update_depths(node, depth=1):
+    """Actualiza profundidad_nodo en todo un subarbol desde su raiz."""
+    if node is None:
+        return
+    node.setNodeDepth(depth)
+    update_depths(node.getLeftChild(), depth + 1)
+    update_depths(node.getRightChild(), depth + 1)
+
+
 def balance_factor(node):
     """Calcula izquierda menos derecha; un AVL valido queda entre -1 y 1."""
     # Un nodo inexistente no puede desbalancear a su padre.

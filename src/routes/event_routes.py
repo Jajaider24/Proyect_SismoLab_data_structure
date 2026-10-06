@@ -49,6 +49,18 @@ class ModePayload(BaseModel):
     stress: bool
 
 
+class OldArchivePreviewPayload(BaseModel):
+    """Umbral configurable para buscar ramas de eventos antiguos."""
+
+    threshold_hours: float = Field(default=72, gt=0)
+
+
+class OldArchivePayload(OldArchivePreviewPayload):
+    """Confirmacion de una rama con la lista exacta mostrada al usuario."""
+
+    expected_identifiers: list[int]
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_event(payload: EventPayload):
     """Crea un evento y devuelve el arbol AVL de eventos actualizado."""
@@ -80,6 +92,21 @@ def set_event_mode(payload: ModePayload):
 @router.post("/recover")
 def recover_event_tree():
     return event_controller.recover_event_tree()
+
+
+@router.post("/archive/old/preview")
+def preview_old_event_branch_archive(payload: OldArchivePreviewPayload):
+    """Devuelve candidatos y justificacion sin cambiar el estado del catalogo."""
+    return event_controller.preview_old_branch_archive(payload.threshold_hours)
+
+
+@router.post("/archive/old")
+def archive_old_event_branch(payload: OldArchivePayload):
+    """Archiva la rama antigua confirmada en su previsualizacion."""
+    return event_controller.archive_old_branch(
+        payload.threshold_hours,
+        payload.expected_identifiers,
+    )
 
 
 @router.get("/{identifier}")

@@ -54,6 +54,71 @@
   height: 495px;
   margin-top: 20px;
 }
+.cost-to-reach-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.cost-to-reach-form input {
+  width: 90px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.old-archive-panel {
+  margin-top: 18px;
+  padding: 14px;
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.old-archive-heading h3 {
+  margin: 3px 0 12px;
+  color: var(--ink);
+  font: 700 16px Georgia, serif;
+}
+.old-archive-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.old-archive-form input {
+  width: 100px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.old-archive-preview {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.old-archive-preview p {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.old-archive-preview p + p {
+  color: var(--muted);
+}
+.old-archive-preview button {
+  margin-top: 5px;
+}
+.old-archive-panel .message:empty {
+  display: none;
+}
 .empty-state {
   display: grid;
   place-items: center;
@@ -113,8 +178,17 @@
 }
 .link {
   fill: none;
-  stroke: #b9d1ca;
+  stroke: var(--teal);
   stroke-width: 2;
   stroke-dasharray: 5 5;
   animation: dash 12s linear infinite;
+}
+.link.cost-exceeded {
+  stroke: var(--coral-dark);
+}
+
+@media (max-width: 620px) {
+  .cost-to-reach-form {
+    flex-wrap: wrap;
+  }
 }

@@ -9,14 +9,15 @@ from src.core.node.node import Node
 
 class TestAVL(unittest.TestCase):
     def assert_valid_avl(self, tree):
-        def visit(node, lower=None, upper=None):
+        def visit(node, lower=None, upper=None, expected_depth=1):
             if node is None:
                 return 0
             key = node.get_order_key()
             self.assertTrue(lower is None or key > lower)
             self.assertTrue(upper is None or key < upper)
-            left = visit(node.getLeftChild(), lower, key)
-            right = visit(node.getRightChild(), key, upper)
+            self.assertEqual(node.getNodeDepth(), expected_depth)
+            left = visit(node.getLeftChild(), lower, key, expected_depth + 1)
+            right = visit(node.getRightChild(), key, upper, expected_depth + 1)
             self.assertLessEqual(abs(left - right), 1)
             self.assertEqual(node.getHeight(), 1 + max(left, right))
             if node is tree.getRoot():
@@ -59,6 +60,7 @@ class TestAVL(unittest.TestCase):
                     fecha_hora="2026-09-30T18:00:00-05:00", revision="r1",
                     procedencia="sensor", estado_atencion=True)
         self.assertEqual(node.to_dict()["identificador"], 7)
+        self.assertEqual(node.to_dict()["profundidad_nodo"], 1)
         self.assertEqual(node.getX(), 12.3)
         self.assertEqual(node.getY(), 45.6)
         node.setX(100.0)

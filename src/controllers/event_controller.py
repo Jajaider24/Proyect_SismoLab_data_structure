@@ -97,6 +97,26 @@ def archive_event_branch(identifier):
         _handle_event_error(error)
 
 
+def preview_old_branch_archive(threshold_hours):
+    """Previsualiza la seleccion automatica sin registrar una mutacion."""
+    try:
+        return event_catalog.preview_old_branch_archive(threshold_hours)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def archive_old_branch(threshold_hours, expected_identifiers):
+    """Confirma la seleccion antigua y devuelve su resumen y arbol actualizado."""
+    try:
+        archive = event_catalog.archive_old_branch(
+            threshold_hours,
+            expected_identifiers,
+        )
+        return {"archive": archive, "data": event_catalog.response()}
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
 def undo_event_action():
     """Deshace la ultima accion registrada en el catalogo de eventos."""
     try:
