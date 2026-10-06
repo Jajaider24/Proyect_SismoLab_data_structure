@@ -1,0 +1,115 @@
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 19px;
+  margin-top: 19px;
+}
+.bottom-grid .panel {
+  min-height: 210px;
+  animation: rise 0.55s 0.32s ease both;
+}
+.event-list,
+.activity-list {
+  margin-top: 18px;
+}
+.event-row,
+.activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+.event-main,
+.activity-main {
+  min-width: 0;
+}
+.event-id {
+  font-size: 13px;
+}
+.event-meta,
+.activity-meta {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.event-priority {
+  min-width: 29px;
+  padding: 6px 7px;
+  color: #fff;
+  border-radius: 3px;
+  font:
+    700 11px "DM Mono",
+    Consolas,
+    monospace;
+  text-align: center;
+}
+.event-row {
+  width: 100%;
+  color: var(--ink);
+  background: transparent;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  text-align: left;
+  transform: none;
+  box-shadow: none;
+}
+.event-row:hover,
+.event-row:focus-visible {
+  background: var(--paper-soft);
+  border-left-color: var(--teal);
+  box-shadow: none;
+  transform: none;
+}
+.event-row:focus-visible {
+  outline: 3px solid rgba(8, 127, 120, 0.2);
+  outline-offset: -3px;
+}
+.event-row:active,
+.event-row:disabled {
+  transform: none;
+  opacity: 1;
+}
+.activity-row {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.activity-marker {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+.activity-marker.error {
+  background: var(--coral);
+}
+.icon-button {
+  min-height: 30px;
+  padding: 0 9px;
+  color: var(--muted);
+  background: var(--paper-soft);
+  border-color: var(--line);
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+}
+.icon-button:hover {
+  color: var(--coral);
+  background: #ffe8e2;
+  border-color: #efb5a8;
+  box-shadow: none;
+  transform: none;
+}
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}

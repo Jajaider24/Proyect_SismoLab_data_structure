@@ -1,0 +1,122 @@
+<section class="create-panel" aria-labelledby="create-title">
+  <div class="section-heading">
+    <div>
+      <p class="section-kicker">Catálogo activo</p>
+      <h2 id="create-title">Registrar un evento</h2>
+    </div>
+    <span class="required-note">Campos marcados con *</span>
+  </div>
+  <form id="insert-form" class="event-form">
+    <div class="form-group">
+      <h3>Identidad del evento</h3>
+      <div class="form-grid form-grid-4">
+        <label
+          >Identificador *<input
+            id="value-input"
+            type="number"
+            min="1"
+            max="999999"
+            step="1"
+            required
+            placeholder="000000"
+        /></label>
+        <label
+          >Magnitud *<input
+            id="create-magnitud"
+            type="number"
+            min="-2"
+            max="10"
+            step="0.1"
+            required
+            placeholder="0.0"
+        /></label>
+        <label
+          >Profundidad (km) *<input
+            id="create-profundidad"
+            type="number"
+            min="0"
+            max="700"
+            step="0.1"
+            required
+            placeholder="0.0"
+        /></label>
+        <label
+          >Fecha y hora *<input
+            id="create-fecha"
+            type="datetime-local"
+            required
+        /></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <h3>Origen y contexto</h3>
+      <div class="form-grid form-grid-5">
+        <label
+          >Fuente / procedencia<input
+            id="create-procedencia"
+            type="text"
+            placeholder="Estación o fuente"
+        /></label>
+        <label
+          >Revisión *<input
+            id="create-revision"
+            type="text"
+            required
+            readonly
+            value="1"
+            placeholder="1"
+        /></label>
+        <label
+          >Estación *<input
+            id="create-estacion"
+            type="text"
+            required
+            placeholder="Código de estación"
+        /></label>
+        <label
+          >Coordenada X (km) *<input
+            id="create-latitud"
+            type="number"
+            min="0"
+            max="1000"
+            step="0.0001"
+            required
+            placeholder="0 a 1000"
+        /></label>
+        <label
+          >Coordenada Y (km) *<input
+            id="create-longitud"
+            type="number"
+            min="0"
+            max="1000"
+            step="0.0001"
+            required
+            placeholder="0 a 1000"
+        /></label>
+      </div>
+    </div>
+    <div class="form-footer">
+      <div class="switches">
+        <label class="checkbox-label"
+          ><input id="create-zona" type="checkbox" disabled /><span
+            >Zona poblada · calculada</span
+          ></label
+        >
+        <label class="checkbox-label"
+          ><input id="create-atencion" type="checkbox" disabled /><span
+            >Pendiente al crear</span
+          ></label
+        >
+      </div>
+      <div class="form-actions">
+        <button id="clear-button" type="button" class="secondary">
+          Limpiar
+        </button>
+        <button type="submit">
+          Registrar evento <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </div>
+  </form>
+  <p id="message" class="message" aria-live="polite"></p>
+</section>

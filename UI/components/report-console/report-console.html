@@ -1,0 +1,102 @@
+<section class="report-panel" aria-labelledby="report-title">
+  <div class="section-heading">
+    <div>
+      <p class="section-kicker">Flujo de estaciones</p>
+      <h2 id="report-title">Bandeja de reportes</h2>
+    </div>
+    <span id="report-queue-count" class="required-note">0 en cola</span>
+  </div>
+  <form id="report-form" class="report-form">
+    <div class="form-grid form-grid-5">
+      <label
+        >ID *<input id="report-id" type="number" min="1" max="999999" required
+      /></label>
+      <label
+        >Magnitud *<input
+          id="report-magnitude"
+          type="number"
+          min="-2"
+          max="10"
+          step="0.1"
+          required
+      /></label>
+      <label
+        >Profundidad *<input
+          id="report-depth"
+          type="number"
+          min="0"
+          max="700"
+          step="0.1"
+          required
+      /></label>
+      <label
+        >X (km) *<input
+          id="report-x"
+          type="number"
+          min="0"
+          max="1000"
+          step="0.1"
+          required
+      /></label>
+      <label
+        >Y (km) *<input
+          id="report-y"
+          type="number"
+          min="0"
+          max="1000"
+          step="0.1"
+          required
+      /></label>
+      <label
+        >Ocurrencia UTC *<input id="report-time" type="datetime-local" required
+      /></label>
+      <label
+        >Estación *<input id="report-station" type="text" required
+      /></label>
+      <label
+        >Revisión *<input
+          id="report-revision"
+          type="number"
+          min="1"
+          step="1"
+          required
+      /></label>
+    </div>
+    <div class="report-actions">
+      <button type="submit">Encolar reporte</button>
+      <button id="process-one-report" type="button" class="secondary">
+        Procesar un paso
+      </button>
+      <button id="process-reports" type="button" class="secondary">
+        Procesar todo
+      </button>
+      <label class="stress-delay-label"
+        >Pausa (ms)<input
+          id="stress-delay"
+          type="number"
+          min="100"
+          max="10000"
+          step="100"
+          value="800"
+      /></label>
+      <button id="stress-start" type="button" class="review">
+        Iniciar continuo
+      </button>
+      <button id="stress-mode" type="button" class="secondary">
+        Activar estrés
+      </button>
+      <button id="recover-tree" type="button" class="review">
+        Recuperar AVL
+      </button>
+    </div>
+  </form>
+  <p id="report-message" class="message" aria-live="polite"></p>
+  <div class="stress-status">
+    <strong id="stress-status">Modo normal</strong
+    ><span id="stress-audit">AVL equilibrado</span>
+  </div>
+  <div id="report-queue" class="report-queue" aria-live="polite"></div>
+  <div id="report-results" class="report-results" aria-live="polite">
+    <p class="muted">Los resultados de cada paso aparecerán aquí.</p>
+  </div>
+</section>

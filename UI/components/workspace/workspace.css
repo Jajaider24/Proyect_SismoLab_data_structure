@@ -1,0 +1,120 @@
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 19px;
+  margin-top: 19px;
+  align-items: start;
+}
+.panel {
+  padding: 24px 26px;
+  background: rgba(255, 254, 250, 0.94);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.visualization {
+  min-height: 586px;
+  overflow: hidden;
+  animation: rise 0.55s 0.22s ease both;
+}
+.panel-heading {
+  align-items: flex-start;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 11px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.legend span {
+  white-space: nowrap;
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+}
+.priority-1 {
+  background: var(--teal);
+}
+.priority-2 {
+  background: var(--gold);
+}
+.priority-3 {
+  background: var(--coral);
+}
+#tree-canvas {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  height: 495px;
+  margin-top: 20px;
+}
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 430px;
+  color: var(--muted);
+  text-align: center;
+}
+.empty-state strong,
+.empty-state span {
+  display: block;
+}
+.empty-state strong {
+  color: var(--ink);
+  font:
+    700 20px Georgia,
+    serif;
+}
+.empty-state span {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.node {
+  cursor: pointer;
+}
+.node circle {
+  fill: var(--teal);
+  stroke: var(--paper);
+  stroke-width: 3;
+  transition:
+    fill 0.2s ease,
+    r 0.2s ease,
+    filter 0.2s ease;
+  animation: node-in 0.45s ease both;
+}
+.node circle.priority-2 {
+  fill: var(--gold);
+}
+.node circle.priority-3 {
+  fill: var(--coral);
+}
+.node:hover circle,
+.node.selected circle {
+  fill: var(--coral);
+  filter: drop-shadow(0 4px 5px rgba(219, 101, 76, 0.32));
+}
+.node text {
+  fill: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.node .height {
+  fill: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.link {
+  fill: none;
+  stroke: #b9d1ca;
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  animation: dash 12s linear infinite;
+}

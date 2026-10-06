@@ -1,0 +1,119 @@
+.report-panel {
+  margin-top: 19px;
+  padding: 27px 29px 18px;
+  border-top: 4px solid var(--gold);
+  animation: rise 0.55s 0.19s ease both;
+}
+.report-form {
+  margin-top: 23px;
+}
+.report-actions {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+.stress-delay-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+.stress-delay-label input {
+  width: 100px;
+  min-height: 36px;
+  margin-top: 4px;
+}
+.stress-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.stress-status strong {
+  color: var(--teal-dark);
+}
+.stress-status.is-stress strong,
+.stress-status.is-unbalanced strong {
+  color: var(--coral);
+}
+.stress-status.is-unbalanced {
+  padding: 10px 12px;
+  color: var(--coral-dark);
+  background: #fff4ef;
+  border: 1px solid #f0c9bf;
+  border-radius: 5px;
+}
+.report-queue,
+.report-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.report-queue:empty {
+  display: none;
+}
+.queue-row,
+.report-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.queue-order,
+.report-decision {
+  color: var(--teal-dark);
+  font:
+    700 11px "DM Mono",
+    Consolas,
+    monospace;
+}
+.report-detail {
+  min-width: 0;
+}
+.report-detail span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+#stress-mode {
+  color: #805d09;
+  background: var(--gold-soft);
+  border-color: #e8c66f;
+}
+#stress-mode:hover {
+  color: #624603;
+  background: #ffe6a1;
+  border-color: #d9aa3d;
+}
+#recover-tree,
+#stress-start {
+  color: #fff;
+  background: linear-gradient(135deg, #168f7e 0%, #0b6d67 100%);
+  border-color: #0b6d67;
+}
+#recover-tree:hover,
+#stress-start:hover {
+  background: linear-gradient(135deg, #0b6d67 0%, #07504f 100%);
+}
+#process-one-report {
+  color: var(--teal-dark);
+  background: #e7f7f2;
+  border-color: #b8e4d8;
+}
+#process-reports {
+  color: #5d4a15;
+  background: #fff8e8;
+  border-color: #ecd994;
+}

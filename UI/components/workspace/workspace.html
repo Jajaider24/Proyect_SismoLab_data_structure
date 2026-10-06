@@ -1,0 +1,170 @@
+<section class="workspace">
+  <section class="visualization panel" aria-label="Visualizacion del arbol AVL">
+    <div class="panel-heading">
+      <div>
+        <p class="section-kicker">Estructura viva</p>
+        <h2>Mapa del índice AVL</h2>
+      </div>
+      <div class="legend">
+        <span><i class="legend-dot priority-3"></i>P3 crítica</span>
+        <span><i class="legend-dot priority-2"></i>P2 media</span>
+        <span><i class="legend-dot priority-1"></i>P1 normal</span>
+      </div>
+    </div>
+    <div id="tree-empty" class="empty-state" hidden>
+      <strong>El índice está vacío</strong>
+      <span>Registra tu primer evento para visualizar el balance AVL.</span>
+    </div>
+    <svg id="tree-canvas" role="img" aria-label="Arbol AVL"></svg>
+  </section>
+  <aside
+    id="node-inspector"
+    class="inspector panel"
+    aria-label="Atributos del nodo seleccionado"
+  >
+    <div class="panel-heading">
+      <div>
+        <p class="section-kicker">Ficha operativa</p>
+        <h2>Evento seleccionado</h2>
+      </div>
+      <form id="lookup-form" class="lookup-form">
+        <input
+          id="lookup-id"
+          type="number"
+          min="1"
+          max="999999"
+          placeholder="ID"
+          aria-label="Identificador a consultar"
+          required
+        />
+        <button type="submit" class="secondary">Consultar</button>
+      </form>
+      <span id="edit-priority-badge" class="priority-badge" hidden>P1</span>
+    </div>
+    <p id="selection-hint" class="muted empty-inspector">
+      Selecciona un nodo en el mapa para consultar o corregir sus datos.
+    </p>
+    <form id="edit-form" hidden>
+      <div class="inspector-id">
+        <span>ID de evento</span><strong id="selected-id-label">—</strong>
+      </div>
+      <div class="form-grid form-grid-2">
+        <label
+          >Identificador<input
+            id="edit-identificador"
+            type="number"
+            min="1"
+            max="999999"
+            required
+            readonly
+        /></label>
+        <label
+          >Prioridad<input id="edit-prioridad" type="number" readonly
+        /></label>
+        <label
+          >Magnitud<input
+            id="edit-magnitud"
+            type="number"
+            min="-2"
+            max="10"
+            step="0.1"
+            required
+        /></label>
+        <label
+          >Profundidad (km)<input
+            id="edit-profundidad"
+            type="number"
+            min="0"
+            max="700"
+            step="0.1"
+            required
+        /></label>
+        <label
+          >Fecha y hora<input id="edit-fecha" type="datetime-local" required
+        /></label>
+        <label
+          >Revisión<input id="edit-revision" type="text" required readonly
+        /></label>
+        <label
+          >Procedencia<input id="edit-procedencia" type="text" required
+        /></label>
+        <label>Estación<input id="edit-estacion" type="text" required /></label>
+        <label
+          >Coordenada X (km)<input
+            id="edit-latitud"
+            type="number"
+            min="0"
+            max="1000"
+            step="0.0001"
+            required
+        /></label>
+        <label
+          >Coordenada Y (km)<input
+            id="edit-longitud"
+            type="number"
+            min="0"
+            max="1000"
+            step="0.0001"
+            required
+        /></label>
+      </div>
+      <div class="switches inspector-switches">
+        <label class="checkbox-label"
+          ><input id="edit-atencion" type="checkbox" disabled /><span
+            >Pendiente / revisado</span
+          ></label
+        >
+        <label class="checkbox-label"
+          ><input id="edit-zona" type="checkbox" disabled /><span
+            >Zona poblada · calculada</span
+          ></label
+        >
+      </div>
+      <div class="inspector-actions">
+        <button type="submit">Guardar cambios</button>
+        <button id="review-button" type="button" class="review">
+          Marcar como revisado
+        </button>
+        <button id="archive-button" type="button" class="secondary">
+          Archivar rama
+        </button>
+        <button id="delete-button" type="button" class="danger">
+          Eliminar evento
+        </button>
+      </div>
+    </form>
+    <form id="replica-form" class="replica-form" hidden>
+      <div class="replica-heading">
+        <div>
+          <p class="section-kicker">Replica espacial</p>
+          <h3>Eventos cercanos</h3>
+        </div>
+      </div>
+      <div class="form-grid form-grid-2">
+        <label
+          >R radio (km)<input
+            id="replica-r"
+            type="number"
+            min="0"
+            step="1"
+            required
+            placeholder="Ej. 25"
+        /></label>
+        <label
+          >W ventana (h)<input
+            id="replica-w"
+            type="number"
+            min="0"
+            step="1"
+            required
+            placeholder="Ej. 2"
+        /></label>
+      </div>
+      <button type="submit" class="secondary">Buscar cercanos</button>
+      <div id="replica-results" class="replica-results">
+        <p class="muted">Define R y W para comparar activos y archivados.</p>
+      </div>
+    </form>
+    <p id="edit-message" class="message" aria-live="polite"></p>
+  </aside>
+</section>
