@@ -401,6 +401,38 @@
               </button>
             </div>
           </form>
+          <form id="replica-form" class="replica-form" hidden>
+            <div class="replica-heading">
+              <div>
+                <p class="section-kicker">Replica espacial</p>
+                <h3>Eventos cercanos</h3>
+              </div>
+            </div>
+            <div class="form-grid form-grid-2">
+              <label
+                >R radio (km)<input
+                  id="replica-r"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  placeholder="Ej. 25"
+              /></label>
+              <label
+                >W ventana (h)<input
+                  id="replica-w"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  placeholder="Ej. 2"
+              /></label>
+            </div>
+            <button type="submit" class="secondary">Buscar cercanos</button>
+            <div id="replica-results" class="replica-results">
+              <p class="muted">Define R y W para comparar activos y archivados.</p>
+            </div>
+          </form>
           <p id="edit-message" class="message" aria-live="polite"></p>
         </aside>
       </section>

@@ -498,6 +498,51 @@ button.secondary:hover {
   display: grid;
   gap: 9px;
 }
+.replica-form {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.replica-heading h3 {
+  margin: 0 0 13px;
+  font:
+    700 18px/1.1 Georgia,
+    serif;
+}
+.replica-form button {
+  width: 100%;
+  margin-top: 3px;
+}
+.replica-results {
+  margin-top: 14px;
+}
+.replica-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.replica-row strong,
+.replica-row span {
+  display: block;
+}
+.replica-row strong {
+  font-size: 13px;
+}
+.replica-meta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.replica-distance {
+  color: var(--teal-dark);
+  font:
+    700 12px "DM Mono",
+    Consolas,
+    monospace;
+  text-align: right;
+}
 .review {
   color: var(--teal-dark);
   background: #dff1eb;

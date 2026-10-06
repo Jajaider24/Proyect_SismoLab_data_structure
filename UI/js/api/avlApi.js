@@ -38,6 +38,11 @@ export const avlApi = {
     request(`/${encodeURIComponent(identifier)}/archive`, {
       method: "POST",
     }),
+  replicas: (identifier, params) =>
+    request(`/${encodeURIComponent(identifier)}/replicas`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
   undo: () => request("/undo", { method: "POST" }),
   enqueueReport: (report) =>
     request("/reports", { method: "POST", body: JSON.stringify(report) }),

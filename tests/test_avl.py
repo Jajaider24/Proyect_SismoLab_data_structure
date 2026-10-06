@@ -55,15 +55,26 @@ class TestAVL(unittest.TestCase):
 
     def test_node_business_attributes_are_validated(self):
         node = Node(7, prioridad=2.5, magnitud=1.0, profundidad_h=100.0,
+                    x=12.3, y=45.6,
                     fecha_hora="2026-09-30T18:00:00-05:00", revision="r1",
                     procedencia="sensor", estado_atencion=True)
         self.assertEqual(node.to_dict()["identificador"], 7)
+        self.assertEqual(node.getX(), 12.3)
+        self.assertEqual(node.getY(), 45.6)
+        node.setX(100.0)
+        node.setY(200.0)
+        self.assertEqual(node.to_dict()["x"], 100.0)
+        self.assertEqual(node.to_dict()["y"], 200.0)
         with self.assertRaises(ValueError):
             Node(0)
         with self.assertRaises(ValueError):
             Node(7, magnitud=2.55)
         with self.assertRaises(ValueError):
             Node(7, profundidad_h=701.0)
+        with self.assertRaises(ValueError):
+            Node(7, x=1000.1)
+        with self.assertRaises(ValueError):
+            node.setY(-0.1)
 
     def test_left_uses_priority_magnitude_and_identifier(self):
         current = Node(20, magnitud=4.5, profundidad_h=100.0)

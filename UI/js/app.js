@@ -31,6 +31,8 @@ const reportForm = document.querySelector("#report-form");
 const processReportsButton = document.querySelector("#process-reports");
 const reportMessage = document.querySelector("#report-message");
 const reportQueueCount = document.querySelector("#report-queue-count");
+const replicaForm = document.querySelector("#replica-form");
+const replicaResults = document.querySelector("#replica-results");
 let selectedIdentifier = null;
 let currentData = { values: [], tree: null };
 let activity = JSON.parse(localStorage.getItem("sismolab-activity") || "[]");
@@ -158,6 +160,9 @@ function selectNode(nodeData) {
   document.querySelector("#edit-estacion").value = attributes.station || "";
   document.querySelector("#edit-latitud").value = attributes.x ?? "";
   document.querySelector("#edit-longitud").value = attributes.y ?? "";
+  replicaForm.hidden = false;
+  replicaResults.innerHTML =
+    '<p class="muted">Define R y W para comparar activos y archivados.</p>';
   editMessage.textContent = `Nodo ${selectedIdentifier} seleccionado.`;
 }
 
@@ -207,6 +212,28 @@ function readReportForm() {
     station: document.querySelector("#report-station").value,
     revision: Number(document.querySelector("#report-revision").value),
   };
+}
+
+function readReplicaForm() {
+  return {
+    r: Number(document.querySelector("#replica-r").value),
+    w: Number(document.querySelector("#replica-w").value),
+  };
+}
+
+function renderReplicaResults(result) {
+  const replicas = result.replicas || [];
+  if (!replicas.length) {
+    replicaResults.innerHTML =
+      '<p class="muted">No hay eventos activos o archivados dentro de R y W.</p>';
+    return;
+  }
+  replicaResults.innerHTML = replicas
+    .map(
+      (item) =>
+        `<div class="replica-row"><div><strong>#${item.identifier} Â· ${item.state}</strong><span class="replica-meta">Î”t ${Number(item.time_delta_hours).toFixed(2)} h Â· M ${Number(item.event.magnitude).toFixed(1)}</span></div><span class="replica-distance">${Number(item.distance_km).toFixed(2)} km</span></div>`,
+    )
+    .join("");
 }
 
 form.addEventListener("submit", async (event) => {
@@ -282,6 +309,27 @@ processReportsButton.addEventListener("click", async () => {
   }
 });
 
+replicaForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (selectedIdentifier === null) return;
+  setBusy(replicaForm, true);
+  try {
+    const result = await treeService.replicas(
+      selectedIdentifier,
+      readReplicaForm(),
+    );
+    renderReplicaResults(result);
+    addActivity(
+      "Replica consultada",
+      `#${selectedIdentifier} con ${result.replicas.length} cercano(s)`,
+    );
+  } catch (error) {
+    replicaResults.innerHTML = `<p class="muted">[${error.status || 500}] ${error.message}</p>`;
+  } finally {
+    setBusy(replicaForm, false);
+  }
+});
+
 editForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (selectedIdentifier === null) return;
@@ -315,6 +363,7 @@ deleteButton.addEventListener("click", async () => {
     setConnection(true);
     addActivity("Evento eliminado", `#${selectedIdentifier} retirado del AVL`);
     editForm.hidden = true;
+    replicaForm.hidden = true;
     document.querySelector("#edit-priority-badge").hidden = true;
     selectionHint.hidden = false;
     selectedIdentifier = null;
@@ -367,6 +416,7 @@ archiveButton.addEventListener("click", async () => {
     setConnection(true);
     addActivity("Rama archivada", `Desde #${selectedIdentifier}`);
     editForm.hidden = true;
+    replicaForm.hidden = true;
     selectionHint.hidden = false;
     selectedIdentifier = null;
   } catch (error) {

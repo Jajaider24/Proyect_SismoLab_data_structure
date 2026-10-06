@@ -112,3 +112,11 @@ def process_pending_event_reports():
         }
     except (EventNotFound, EventValidationError) as error:
         _handle_event_error(error)
+
+
+def find_event_replicas(identifier, payload):
+    """Busca replicas cercanas a un evento activo o archivado."""
+    try:
+        return event_catalog.find_replicas(identifier, payload.r, payload.w)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)

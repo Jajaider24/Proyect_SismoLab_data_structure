@@ -26,6 +26,8 @@ class EventAvlIndex:
             event.identifier,
             magnitud=event.magnitude,
             profundidad_h=event.depth_km,
+            x=event.x,
+            y=event.y,
             fecha_hora=event.occurred_at.isoformat(),
             revision=str(event.revision),
             procedencia=event.station,

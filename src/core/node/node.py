@@ -12,13 +12,15 @@ class Node:
     """Nodo ordenado por ``identificador`` y con metadatos editables."""
 
     def __init__(self, identificador, prioridad=None, magnitud=0.0, profundidad_h=0.0,
-                 fecha_hora=None, revision="", procedencia="",
+                 x=0.0, y=0.0, fecha_hora=None, revision="", procedencia="",
                  estado_atencion=False, zona_poblada=False):
         """Valida datos de negocio e inicializa enlaces internos del AVL."""
         # Validamos antes de guardar para que ningun nodo invalido entre al AVL.
         validate_identifier(identificador)
         validate_decimal("magnitud", magnitud, -2.0, 10.0)
         validate_decimal("profundidad_h", profundidad_h, 0.0, 700.0)
+        validate_decimal("x", x, 0.0, 1000.0)
+        validate_decimal("y", y, 0.0, 1000.0)
         if fecha_hora is not None and not isinstance(fecha_hora, str):
             raise ValueError("fecha_hora debe ser un string.")
         if not isinstance(revision, str):
@@ -34,6 +36,8 @@ class Node:
         self.identificador = identificador
         self.magnitud = float(magnitud)
         self.profundidad_h = float(profundidad_h)
+        self.x = float(x)
+        self.y = float(y)
         self.zona_poblada = zona_poblada
         # La prioridad nunca viene del usuario: se deriva de estos tres datos.
         self.prioridad = self.calculate_priority()
@@ -55,6 +59,8 @@ class Node:
         self.identificador = other.identificador
         self.magnitud = other.magnitud
         self.profundidad_h = other.profundidad_h
+        self.x = other.x
+        self.y = other.y
         self.zona_poblada = other.zona_poblada
         self.prioridad = self.calculate_priority()
         self.fecha_hora = other.fecha_hora
@@ -87,6 +93,24 @@ class Node:
     def getZonaPoblada(self):
         """Devuelve si el nodo pertenece a una zona poblada."""
         return self.zona_poblada
+
+    def getX(self):
+        """Devuelve la coordenada X en kilometros."""
+        return self.x
+
+    def setX(self, value):
+        """Actualiza la coordenada X validando el rango del escenario."""
+        validate_decimal("x", value, 0.0, 1000.0)
+        self.x = float(value)
+
+    def getY(self):
+        """Devuelve la coordenada Y en kilometros."""
+        return self.y
+
+    def setY(self, value):
+        """Actualiza la coordenada Y validando el rango del escenario."""
+        validate_decimal("y", value, 0.0, 1000.0)
+        self.y = float(value)
 
     def setZonaPoblada(self, value):
         """Actualiza la zona y recalcula la prioridad derivada."""
@@ -150,6 +174,8 @@ class Node:
             "prioridad": self.prioridad,
             "magnitud": self.magnitud,
             "profundidad_h": self.profundidad_h,
+            "x": self.x,
+            "y": self.y,
             "zona_poblada": self.zona_poblada,
             "fecha_hora": self.fecha_hora,
             "revision": self.revision,

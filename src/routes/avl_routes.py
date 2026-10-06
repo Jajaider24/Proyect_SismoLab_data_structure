@@ -18,6 +18,8 @@ class NodePayload(BaseModel):
     identificador: int
     magnitud: float = 0.0
     profundidad_h: float = 0.0
+    x: float = 0.0
+    y: float = 0.0
     fecha_hora: Optional[str] = None
     revision: str = ""
     procedencia: str = ""

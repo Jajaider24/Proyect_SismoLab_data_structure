@@ -38,6 +38,13 @@ class EventPayload(BaseModel):
         )
 
 
+class ReplicaPayload(BaseModel):
+    """Parametros HTTP para buscar replicas cercanas de un evento."""
+
+    r: int = Field(ge=0)
+    w: int = Field(ge=0)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_event(payload: EventPayload):
     """Crea un evento y devuelve el arbol AVL de eventos actualizado."""
@@ -72,6 +79,12 @@ def update_event(identifier: int, payload: EventPayload):
 def review_event(identifier: int):
     """Marca un evento activo como revisado."""
     return event_controller.review_event(identifier)
+
+
+@router.post("/{identifier}/replicas")
+def find_event_replicas(identifier: int, payload: ReplicaPayload):
+    """Busca eventos activos o archivados cercanos al evento indicado."""
+    return event_controller.find_event_replicas(identifier, payload)
 
 
 @router.delete("/{identifier}")

@@ -6,6 +6,7 @@ from src.models.zone import ZoneClassifier
 from src.services.eventCatalog.avl_index import EventAvlIndex
 from src.services.eventCatalog.exceptions import EventValidationError
 from src.services.eventCatalog.history import EventHistory
+from src.services.eventCatalog.replica import EventReplicaService
 from src.services.eventCatalog.reports import EventReportService
 from src.services.eventCatalog.response_builder import EventResponseBuilder
 from src.services.eventCatalog.state_store import EventStateStore
@@ -31,6 +32,7 @@ class EventCatalog:
         self._avl_index = EventAvlIndex(avl_service)
         self._history = EventHistory()
         self._reports = EventReportService()
+        self._replicas = EventReplicaService()
         self._responses = EventResponseBuilder()
 
     @property
@@ -151,6 +153,22 @@ class EventCatalog:
     def process_pending_reports(self):
         """Procesa todos los reportes pendientes en orden FIFO."""
         return self._reports.process_pending(self)
+
+    def find_replicas(self, identifier, radius_km, window_hours):
+        """Busca eventos activos/archivados cercanos a un evento base."""
+        base_event = self.get(identifier)
+        return {
+            "base_event": self.as_dict(base_event),
+            "radius_km": radius_km,
+            "window_hours": window_hours,
+            "replicas": self._replicas.find_replicas(
+                base_event,
+                radius_km,
+                window_hours,
+                self._store.active,
+                self._store.archived,
+            ),
+        }
 
     def undo(self):
         """Restaura la ultima accion registrada y devuelve metricas actuales."""

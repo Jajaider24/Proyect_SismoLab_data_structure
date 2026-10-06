@@ -13,9 +13,10 @@ class TestEventCatalog(unittest.TestCase):
         self.catalog = EventCatalog()
         self.when = datetime(2026, 10, 5, tzinfo=timezone.utc)
 
-    def event(self, identifier=1, revision=1, magnitude=4.0, station="STA-1", when=None):
+    def event(self, identifier=1, revision=1, magnitude=4.0, station="STA-1",
+              when=None, x=0.0, y=0.0, depth=20.0):
         return Event(
-            identifier, magnitude, 20.0, 0.0, 0.0,
+            identifier, magnitude, depth, x, y,
             when or self.when, station, revision=revision,
         )
 
@@ -74,6 +75,46 @@ class TestEventCatalog(unittest.TestCase):
         self.catalog.create(self.event(identifier=2, when=self.when + timedelta(minutes=10)))
         self.assertEqual(self.catalog.get(1).associations, {2})
         self.assertEqual(self.catalog.get(2).associations, {1})
+
+    def test_event_coordinates_are_saved_in_avl_node_attributes(self):
+        self.catalog.create(self.event(identifier=9, x=123.4, y=567.8))
+        data = self.catalog.response(9)
+        self.assertEqual(self.catalog.tree.getRoot().getX(), 123.4)
+        self.assertEqual(self.catalog.tree.getRoot().getY(), 567.8)
+        self.assertEqual(data["tree"]["attributes"]["x"], 123.4)
+        self.assertEqual(data["tree"]["attributes"]["y"], 567.8)
+
+    def test_replicas_filter_active_and_archived_by_time_and_distance(self):
+        self.catalog.create(self.event(identifier=1, x=0, y=0, depth=0))
+        self.catalog.create(self.event(identifier=2, x=3, y=4, depth=0))
+        self.catalog.create(self.event(
+            identifier=3,
+            x=6,
+            y=8,
+            depth=0,
+            when=self.when + timedelta(hours=1),
+        ))
+        self.catalog.create(self.event(
+            identifier=4,
+            x=1,
+            y=1,
+            depth=1,
+            when=self.when + timedelta(hours=3),
+        ))
+        self.catalog.create(self.event(identifier=5, x=2, y=0, depth=0))
+        self.catalog.archive_branch(5)
+        self.catalog.create(self.event(identifier=6, x=1, y=0, depth=0))
+        self.catalog.delete(6)
+
+        result = self.catalog.find_replicas(1, radius_km=10, window_hours=2)
+        self.assertEqual(
+            [item["identifier"] for item in result["replicas"]],
+            [5, 2, 3],
+        )
+        self.assertEqual(result["replicas"][0]["state"], EventState.ARCHIVED)
+        self.assertEqual(result["replicas"][1]["distance_km"], 5.0)
+        self.assertNotIn(4, [item["identifier"] for item in result["replicas"]])
+        self.assertNotIn(6, [item["identifier"] for item in result["replicas"]])
 
 
 if __name__ == "__main__":
