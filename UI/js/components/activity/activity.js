@@ -56,6 +56,7 @@ export function initActivity({ onRequestRefresh } = {}) {
     const node = findNode(currentData.tree, Number(row.dataset.identifier));
     if (node) {
       store.selectNode(node);
+      window.location.hash = "#eventos";
     }
   });
 

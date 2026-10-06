@@ -71,10 +71,13 @@ Con el backend ejecutandose, abre otra terminal y sirve la carpeta estatica:
 python -m http.server 5173 --directory UI
 ```
 
-Luego visita `http://localhost:5173`. La UI esta separada en API, servicio,
-renderizador D3 y aplicacion, y usa el CDN de D3.js. El catalogo mantiene un
-indice auxiliar por identificador y separa el estado activo del historico.
-Las coordenadas del escenario son `x` e `y` en el rango `0..1000` km.
+Luego visita `http://localhost:5173`. La interfaz organiza las funciones en
+vistas independientes: resumen (`#inicio`), gestión de eventos (`#eventos`),
+reportes (`#reportes`) y análisis (`#analisis`). La navegación conserva la vista
+en el hash de la URL. La UI separa API, servicio, estado, componentes y
+renderizador D3, y usa el CDN de D3.js. El catálogo mantiene un índice auxiliar
+por identificador y separa el estado activo del histórico. Las coordenadas del
+escenario son `x` e `y` en el rango `0..1000` km.
 
 ## Pruebas
 

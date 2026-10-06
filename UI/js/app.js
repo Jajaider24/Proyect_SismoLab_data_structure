@@ -8,8 +8,10 @@ import { initInspector } from "./components/workspace/inspector.js";
 import { initReportConsole } from "./components/report-console/reportConsole.js";
 import { initActivity } from "./components/activity/activity.js";
 import { initAnalysis } from "./components/analysis/analysis.js";
+import { initViewRouter } from "./components/navigation/viewRouter.js";
 
 // Initialize UI components
+initViewRouter();
 initHeader();
 const metrics = initMetrics();
 const eventForm = initEventForm();

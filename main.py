@@ -1,10 +1,4 @@
-"""
-Flight Management System Backend API.
-
-This module initializes the FastAPI application for the Flight Management System,
-configuring CORS middleware and registering all API route modules for flight operations,
-tree management, versioning, and queue processing.
-"""
+"""Aplicacion FastAPI para el observatorio de eventos sismicos SismoLab."""
 
 import logging
 
@@ -30,8 +24,8 @@ cors_origins = [
 
 # Initialize FastAPI application instance
 app = FastAPI(
-    title="Flight Management System API",
-    description="API for AVL trees ",
+    title="SismoLab API",
+    description="API para el catálogo de eventos sísmicos y su índice AVL.",
     version="1.0.0"
 )
 

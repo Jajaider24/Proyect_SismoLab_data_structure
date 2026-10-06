@@ -45,6 +45,11 @@ export function initWorkspace() {
   });
 
   store.on("data", render);
+  window.addEventListener("sismolab:viewchange", ({ detail }) => {
+    if (detail?.activeView === "eventos") {
+      window.requestAnimationFrame(renderCurrentTree);
+    }
+  });
 
   return { render };
 }

@@ -16,16 +16,50 @@
     <link rel="stylesheet" href="components/workspace/inspector.css" />
     <link rel="stylesheet" href="components/activity/activity.css" />
     <link rel="stylesheet" href="components/analysis/analysis.css" />
+    <link rel="stylesheet" href="css/views.css" />
   </head>
   <body>
     <main class="layout">
       <div data-component="header"></div>
-      <div data-component="metrics"></div>
-      <div data-component="event-form"></div>
-      <div data-component="report-console"></div>
-      <div data-component="analysis"></div>
-      <div data-component="workspace"></div>
-      <div data-component="activity"></div>
+      <nav class="view-nav" aria-label="Navegación principal">
+        <a href="#inicio" data-view-link="inicio">Inicio</a>
+        <a href="#eventos" data-view-link="eventos">Eventos</a>
+        <a href="#reportes" data-view-link="reportes">Reportes</a>
+        <a href="#analisis" data-view-link="analisis">Análisis</a>
+      </nav>
+      <section class="view" data-view="inicio" aria-labelledby="inicio-title">
+        <h2 class="view-title" id="inicio-title" tabindex="-1">Resumen operativo</h2>
+        <div data-component="metrics"></div>
+        <div data-component="activity"></div>
+      </section>
+      <section
+        class="view"
+        data-view="eventos"
+        aria-labelledby="eventos-title"
+        hidden
+      >
+        <h2 class="view-title" id="eventos-title" tabindex="-1">Gestión de eventos</h2>
+        <div data-component="event-form"></div>
+        <div data-component="workspace"></div>
+      </section>
+      <section
+        class="view"
+        data-view="reportes"
+        aria-labelledby="reportes-title"
+        hidden
+      >
+        <h2 class="view-title" id="reportes-title" tabindex="-1">Reportes y procesamiento</h2>
+        <div data-component="report-console"></div>
+      </section>
+      <section
+        class="view"
+        data-view="analisis"
+        aria-labelledby="analisis-title"
+        hidden
+      >
+        <h2 class="view-title" id="analisis-title" tabindex="-1">Consultas del catálogo</h2>
+        <div data-component="analysis"></div>
+      </section>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script type="module" src="js/components/loader.js"></script>
