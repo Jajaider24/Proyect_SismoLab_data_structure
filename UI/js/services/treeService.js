@@ -20,4 +20,6 @@ export const treeService = {
   getMode: async () => avlApi.getMode(),
   setMode: async (stress) => avlApi.setMode(stress),
   recover: async () => avlApi.recover(),
+  queryAnalysis: async (path) => avlApi.queryAnalysis(path),
+  compareStructures: async () => avlApi.compareStructures(),
 };

@@ -66,4 +66,6 @@ export const avlApi = {
       body: JSON.stringify({ stress }),
     }),
   recover: () => request("/recover", { method: "POST" }),
+  queryAnalysis: (path) => request(`/analysis/${path}`),
+  compareStructures: () => request("/analysis/compare"),
 };

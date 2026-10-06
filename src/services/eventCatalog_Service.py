@@ -6,6 +6,7 @@ from src.models.event import AttentionState, EventState
 from src.models.simulation_clock import SimulationClock
 from src.models.zone import ZoneClassifier
 from src.services.eventCatalog.avl_index import EventAvlIndex
+from src.services.eventCatalog.performance_queries import EventPerformanceQueries
 from src.services.eventCatalog.exceptions import EventValidationError
 from src.services.eventCatalog.history import EventHistory
 from src.services.eventCatalog.replica import EventReplicaService
@@ -33,6 +34,7 @@ class EventCatalog:
         self._zone_classifier = zone_classifier or ZoneClassifier()
         self._association_policy = AssociationPolicy()
         self._avl_index = EventAvlIndex(avl_service)
+        self._performance_queries = EventPerformanceQueries(self._store, self._avl_index)
         self._history = EventHistory()
         self._reports = EventReportService()
         self._replicas = EventReplicaService()
@@ -191,7 +193,7 @@ class EventCatalog:
         current = self._store.active_event(identifier)
         self._record("review")
         current.attention = AttentionState.REVIEWED
-        self._rebuild_tree()
+        self._update_active(current, reinsert=False)
         return self.get(identifier)
 
     def delete(self, identifier):
@@ -321,6 +323,24 @@ class EventCatalog:
                 self._store.archived,
             ),
         }
+
+    def query_pending_top(self, k):
+        return self._performance_queries.pending_top(k)
+
+    def query_magnitude_range(self, minimum, maximum):
+        return self._performance_queries.magnitude_range(minimum, maximum)
+
+    def query_shallow_depth(self, maximum_depth, start, end):
+        return self._performance_queries.shallow_depth_range(maximum_depth, start, end)
+
+    def query_associations(self, identifier):
+        return self._performance_queries.associations(identifier)
+
+    def query_costly_high_priority(self, depth_limit):
+        return self._performance_queries.costly_high_priority(depth_limit)
+
+    def compare_structures(self):
+        return self._performance_queries.compare_structures(self._store.active.values())
 
     def undo(self):
         """Restaura la ultima accion registrada y devuelve metricas actuales."""

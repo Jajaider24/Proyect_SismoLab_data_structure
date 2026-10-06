@@ -182,3 +182,30 @@ def find_event_replicas(identifier, payload):
         return event_catalog.find_replicas(identifier, payload.r, payload.w)
     except (EventNotFound, EventValidationError) as error:
         _handle_event_error(error)
+
+
+def query_pending_top(k):
+    return event_catalog.query_pending_top(k)
+
+
+def query_magnitude_range(minimum, maximum):
+    return event_catalog.query_magnitude_range(minimum, maximum)
+
+
+def query_shallow_depth(maximum_depth, start, end):
+    return event_catalog.query_shallow_depth(maximum_depth, start, end)
+
+
+def query_associations(identifier):
+    try:
+        return event_catalog.query_associations(identifier)
+    except (EventNotFound, EventValidationError) as error:
+        _handle_event_error(error)
+
+
+def query_costly_high_priority(depth_limit):
+    return event_catalog.query_costly_high_priority(depth_limit)
+
+
+def compare_event_structures():
+    return event_catalog.compare_structures()

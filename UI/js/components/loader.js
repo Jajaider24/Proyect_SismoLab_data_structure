@@ -3,6 +3,7 @@ const components = [
   ["metrics", "../../components/metrics/metrics.html"],
   ["event-form", "../../components/event-form/event-form.html"],
   ["report-console", "../../components/report-console/report-console.html"],
+  ["analysis", "../../components/analysis/analysis.html"],
   ["workspace", "../../components/workspace/workspace.html"],
   ["activity", "../../components/activity/activity.html"],
 ];

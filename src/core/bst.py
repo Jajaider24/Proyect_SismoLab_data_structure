@@ -39,6 +39,35 @@ class BinarySearchTree:
             current = current.left if key < current.key else current.right
         return False
 
+    def find_with_comparisons(self, key):
+        """Busca una clave y cuenta cuántos nodos compara."""
+        current = self.root
+        comparisons = 0
+        while current is not None:
+            comparisons += 1
+            if key == current.key:
+                return {"found": True, "comparisons": comparisons}
+            current = current.left if key < current.key else current.right
+        return {"found": False, "comparisons": comparisons}
+
+    def metrics(self):
+        """Calcula altura, hojas y cantidad de nodos en una pasada."""
+        if self.root is None:
+            return {"height": 0, "leaves": 0, "nodes": 0}
+        height = leaves = nodes = 0
+        pending = [(self.root, 1)]
+        while pending:
+            node, depth = pending.pop()
+            nodes += 1
+            height = max(height, depth)
+            if node.left is None and node.right is None:
+                leaves += 1
+            if node.left is not None:
+                pending.append((node.left, depth + 1))
+            if node.right is not None:
+                pending.append((node.right, depth + 1))
+        return {"height": height, "leaves": leaves, "nodes": nodes}
+
     def inorder(self):
         values = []
 

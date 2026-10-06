@@ -1,8 +1,8 @@
 """Rutas HTTP de eventos, reportes y ciclo de vida historico."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from src.controllers import event_controller
@@ -59,6 +59,49 @@ class OldArchivePayload(OldArchivePreviewPayload):
     """Confirmacion de una rama con la lista exacta mostrada al usuario."""
 
     expected_identifiers: list[int]
+
+
+@router.get("/analysis/pending")
+def query_pending_top(k: int = Query(gt=0)):
+    return event_controller.query_pending_top(k)
+
+
+@router.get("/analysis/magnitude")
+def query_magnitude_range(
+    minimum: float = Query(ge=-2, le=10),
+    maximum: float = Query(ge=-2, le=10),
+):
+    if minimum > maximum:
+        raise HTTPException(status_code=422, detail="minimum debe ser menor o igual a maximum")
+    return event_controller.query_magnitude_range(minimum, maximum)
+
+
+@router.get("/analysis/depth")
+def query_shallow_depth(
+    maximum_depth: float = Query(ge=0, le=700),
+    start: datetime = Query(),
+    end: datetime = Query(),
+):
+    start = start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start.astimezone(timezone.utc)
+    end = end.replace(tzinfo=timezone.utc) if end.tzinfo is None else end.astimezone(timezone.utc)
+    if start > end:
+        raise HTTPException(status_code=422, detail="start debe ser anterior o igual a end")
+    return event_controller.query_shallow_depth(maximum_depth, start, end)
+
+
+@router.get("/analysis/associations/{identifier}")
+def query_associations(identifier: int):
+    return event_controller.query_associations(identifier)
+
+
+@router.get("/analysis/costly-high-priority")
+def query_costly_high_priority(depth_limit: int = Query(ge=0)):
+    return event_controller.query_costly_high_priority(depth_limit)
+
+
+@router.get("/analysis/compare")
+def compare_event_structures():
+    return event_controller.compare_event_structures()
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

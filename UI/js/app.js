@@ -7,6 +7,7 @@ import { initWorkspace } from "./components/workspace/workspace.js";
 import { initInspector } from "./components/workspace/inspector.js";
 import { initReportConsole } from "./components/report-console/reportConsole.js";
 import { initActivity } from "./components/activity/activity.js";
+import { initAnalysis } from "./components/analysis/analysis.js";
 
 // Initialize UI components
 initHeader();
@@ -14,6 +15,7 @@ const metrics = initMetrics();
 const eventForm = initEventForm();
 initWorkspace();
 initInspector();
+initAnalysis();
 
 export async function refresh() {
   const data = await treeService.load();
