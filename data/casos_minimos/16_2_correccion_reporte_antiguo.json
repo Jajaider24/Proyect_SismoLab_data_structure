@@ -1,0 +1,15 @@
+{
+  "requerimiento": 16,
+  "caso": "Correccion y reporte antiguo",
+  "estado_inicial_importable": {"schema_version": 1, "state": {"store": {"active": [], "archived": [], "deleted": []}, "pending_reports": [], "clock": "2026-10-07T00:00:00Z", "parameters": {"archive_threshold_hours": 72, "zones": []}, "stress_mode": false, "topology": null, "height_convention": "empty-minus-one-leaf-zero", "metrics": {"active": 0, "archived": 0, "deleted": 0, "priority_3": 0, "pending": 0}}, "history": [], "versions": []},
+  "evento_inicial": {"identifier": 201, "magnitude": 4.8, "depth_km": 70, "x": 250, "y": 250, "occurred_at": "2020-02-01T09:00:00Z", "station": "EST-CORR-1", "revision": 1},
+  "acciones": [
+    {"method": "POST", "path": "/events/import", "body": "estado_inicial_importable"},
+    {"method": "POST", "path": "/events/import-nodes", "body": ["evento_inicial"]},
+    {"method": "PUT", "path": "/events/201", "body": {"identifier": 201, "magnitude": 6.2, "depth_km": 15, "x": 250, "y": 250, "occurred_at": "2020-02-01T09:00:00Z", "station": "EST-CORR-1", "revision": 1}},
+    {"method": "POST", "path": "/events/reports/import", "body": [{"identifier": 201, "magnitude": 4.8, "depth_km": 70, "x": 250, "y": 250, "occurred_at": "2020-02-01T09:00:00Z", "station": "EST-CORR-2", "revision": 1}]},
+    {"method": "POST", "path": "/events/reports/process/step"}
+  ],
+  "resultados_esperados": {"antes": {"id": 201, "prioridad": 2, "revision": 1}, "despues_de_corregir": {"id": 201, "prioridad": 3, "revision": 2, "magnitud": 6.2, "profundidad_km": 15, "activos": 1}, "reporte_menor": "stale; se descarta", "nodos_duplicados": 0},
+  "resultados_obtenidos": {"calculados": true, "conclusion": "La correccion cambia K y eleva la prioridad; revision 1 no modifica el evento revision 2.", "verificacion_en_ejecucion": "pendiente de capturar la respuesta del backend"}
+}

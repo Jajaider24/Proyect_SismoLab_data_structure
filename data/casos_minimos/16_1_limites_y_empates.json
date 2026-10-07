@@ -1,0 +1,16 @@
+{
+  "requerimiento": 16,
+  "caso": "Limites y empates",
+  "estado_inicial_importable": {"schema_version": 1, "state": {"store": {"active": [], "archived": [], "deleted": []}, "pending_reports": [], "clock": "2026-10-07T00:00:00Z", "parameters": {"archive_threshold_hours": 72, "zones": []}, "stress_mode": false, "topology": null, "height_convention": "empty-minus-one-leaf-zero", "metrics": {"active": 0, "archived": 0, "deleted": 0, "priority_3": 0, "pending": 0}}, "history": [], "versions": []},
+  "zonas": [{"name": "Borde poblado", "min_x": 100, "max_x": 200, "min_y": 100, "max_y": 200, "populated": true}],
+  "acciones": ["POST /events/import con estado_inicial_importable.", "PUT /events/scenario/parameters con {\"zones\": zonas}.", "POST /events/import-nodes con eventos en el orden indicado."],
+  "eventos": [
+    {"identifier": 101, "magnitude": 4.5, "depth_km": 30, "x": 100, "y": 200, "occurred_at": "2020-01-01T10:00:00Z", "station": "EST-BORDE", "revision": 1},
+    {"identifier": 102, "magnitude": 6.0, "depth_km": 700, "x": 0, "y": 0, "occurred_at": "2020-01-01T10:05:00Z", "station": "EST-MAX", "revision": 1},
+    {"identifier": 112, "magnitude": 5.0, "depth_km": 70, "x": 400, "y": 400, "occurred_at": "2020-01-01T10:10:00Z", "station": "EST-TIE-112", "revision": 1},
+    {"identifier": 110, "magnitude": 5.0, "depth_km": 70, "x": 600, "y": 600, "occurred_at": "2020-01-01T10:10:00Z", "station": "EST-TIE-110", "revision": 1},
+    {"identifier": 111, "magnitude": 5.0, "depth_km": 70, "x": 800, "y": 800, "occurred_at": "2020-01-01T10:10:00Z", "station": "EST-TIE-111", "revision": 1}
+  ],
+  "resultados_esperados": {"prioridades": {"101": 3, "102": 3, "110": 2, "111": 2, "112": 2}, "101_en_borde_de_zona": true, "inorden_K": [110, 111, 112, 101, 102], "criterio_empate": "K ordena prioridad, magnitud e identificador ascendentemente."},
+  "resultados_obtenidos": {"calculados": true, "valores": {"prioridades": {"101": 3, "102": 3, "110": 2, "111": 2, "112": 2}, "inorden_K": [110, 111, 112, 101, 102]}, "verificacion_en_ejecucion": "pendiente de capturar al ejecutar las acciones"}
+}

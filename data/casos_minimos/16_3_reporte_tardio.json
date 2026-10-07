@@ -1,0 +1,13 @@
+{
+  "requerimiento": 16,
+  "caso": "Reporte tardio y seleccion de candidatos",
+  "estado_inicial_importable": {"schema_version": 1, "state": {"store": {"active": [], "archived": [], "deleted": []}, "pending_reports": [], "clock": "2026-10-07T00:00:00Z", "parameters": {"archive_threshold_hours": 72, "zones": []}, "stress_mode": false, "topology": null, "height_convention": "empty-minus-one-leaf-zero", "metrics": {"active": 0, "archived": 0, "deleted": 0, "priority_3": 0, "pending": 0}}, "history": [], "versions": []},
+  "eventos_iniciales": [
+    {"identifier": 301, "magnitude": 5.6, "depth_km": 60, "x": 500, "y": 500, "occurred_at": "2020-03-01T10:00:00Z", "station": "EST-RED-1", "revision": 1},
+    {"identifier": 302, "magnitude": 4.2, "depth_km": 40, "x": 500.5, "y": 500, "occurred_at": "2020-03-01T10:20:00Z", "station": "EST-RED-1", "revision": 1}
+  ],
+  "reporte_tardio": {"identifier": 303, "magnitude": 6.1, "depth_km": 25, "x": 500.2, "y": 500, "occurred_at": "2020-03-01T09:55:00Z", "station": "EST-RED-1", "revision": 1},
+  "acciones": ["POST /events/import con estado_inicial_importable.", "POST /events/import-nodes con eventos_iniciales.", "POST /events/reports/import con [reporte_tardio].", "POST /events/reports/process/step.", "GET /events/analysis/associations/303."],
+  "resultados_esperados": {"reporte": "created", "candidatos_de_303": [301, 302], "asociaciones": {"301": [302, 303], "302": [301, 303], "303": [301, 302]}, "activos": 3, "inorden_K": [302, 301, 303], "deduplicacion_por_proximidad": false},
+  "resultados_obtenidos": {"calculados": true, "conclusion": "303 ocurre antes que ambos, pero es un terremoto distinto; se conserva y asocia por estacion, distancia y tiempo.", "verificacion_en_ejecucion": "pendiente de capturar el procesamiento y las asociaciones"}
+}

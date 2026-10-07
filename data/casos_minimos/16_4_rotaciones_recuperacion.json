@@ -1,0 +1,16 @@
+{
+  "requerimiento": 16,
+  "caso": "Rotaciones AVL y recuperacion desde estres",
+  "estado_inicial_importable": {"schema_version": 1, "state": {"store": {"active": [], "archived": [], "deleted": []}, "pending_reports": [], "clock": "2026-10-07T00:00:00Z", "parameters": {"archive_threshold_hours": 72, "zones": []}, "stress_mode": false, "topology": null, "height_convention": "empty-minus-one-leaf-zero", "metrics": {"active": 0, "archived": 0, "deleted": 0, "priority_3": 0, "pending": 0}}, "history": [], "versions": []},
+  "campos_comunes": {"magnitude": 3, "depth_km": 40, "x": 500, "y": 500, "occurred_at": "2020-04-01T10:00:00Z", "station": "EST-ROT", "revision": 1},
+  "rotaciones": [
+    {"tipo": "LL", "insercion": [30, 20, 10], "esperado": {"raiz": 20, "inorden": [10, 20, 30], "giros": ["derecha"]}},
+    {"tipo": "RR", "insercion": [10, 20, 30], "esperado": {"raiz": 20, "inorden": [10, 20, 30], "giros": ["izquierda"]}},
+    {"tipo": "LR", "insercion": [30, 10, 20], "esperado": {"raiz": 20, "inorden": [10, 20, 30], "giros": ["izquierda", "derecha"]}},
+    {"tipo": "RL", "insercion": [10, 30, 20], "esperado": {"raiz": 20, "inorden": [10, 20, 30], "giros": ["derecha", "izquierda"]}}
+  ],
+  "construccion_rotaciones": "Para cada secuencia, importar estado_inicial_importable; construir cada evento con identifier tomado del orden de insercion y agregar campos_comunes; insertar en ese orden y verificar la raiz e inorden. Cada subcaso empieza en catalogo vacio.",
+  "recuperacion_estres": {"modo": {"method": "POST", "path": "/events/mode", "body": {"stress": true}}, "identificadores_en_orden": [900, 901, 902, 903, 904, 905, 906, 907, 908], "evento_comun": {"magnitude": 3, "depth_km": 40, "x": 500, "y": 500, "occurred_at": "2020-04-01T10:00:00Z", "station": "EST-REC", "revision": 1}, "acciones": ["Importar catalogo vacio, activar modo stress, insertar los nueve IDs en el orden dado.", "GET /events/verify.", "POST /events/recover.", "GET /events/verify."], "esperado_antes": {"raiz": 900, "altura": 8, "factor_balance_raiz": -8, "inorden": [900, 901, 902, 903, 904, 905, 906, 907, 908]}, "esperado_despues": {"modo": "normal", "balanceado": true, "mismos_ids_y_orden": true, "asociaciones_por_evento": 8}},
+  "resultados_esperados": {"rotaciones": "Las cuatro secuencias producen raiz 20 e inorden [10,20,30].", "estres": "Altura 8 y BF de raiz -8 antes de recuperar; balanceado despues con IDs y asociaciones conservados."},
+  "resultados_obtenidos": {"calculados": true, "conclusion": "Las cuatro secuencias dan raiz 20. La cadena de nueve nodos tiene altura 8 y BF -8; reequilibrar enlaces conserva identidades y asociaciones.", "verificacion_en_ejecucion": "pendiente de capturar auditorias antes y despues"}
+}
