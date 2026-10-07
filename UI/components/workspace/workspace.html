@@ -141,21 +141,21 @@
         /></label>
         <label>Estación<input id="edit-estacion" type="text" required /></label>
         <label
-          >Coordenada X (km)<input
+          >Coordenada X (km, 0–1000)<input
             id="edit-latitud"
             type="number"
             min="0"
             max="1000"
-            step="0.0001"
+            step="0.1"
             required
         /></label>
         <label
-          >Coordenada Y (km)<input
+          >Coordenada Y (km, 0–1000)<input
             id="edit-longitud"
             type="number"
             min="0"
             max="1000"
-            step="0.0001"
+            step="0.1"
             required
         /></label>
       </div>
@@ -218,4 +218,33 @@
     </form>
     <p id="edit-message" class="message" aria-live="polite"></p>
   </aside>
+  <section class="geo-map panel" aria-labelledby="geo-map-title">
+    <div class="panel-heading geo-map-heading">
+      <div>
+        <p class="section-kicker">Distribución espacial</p>
+        <h2 id="geo-map-title">Plano de eventos · X/Y</h2>
+        <p class="geo-map-copy">Coordenadas en km · dominio 0–1000 · origen (0, 0) en la esquina inferior izquierda.</p>
+        <div class="geo-map-controls">
+          <label class="geo-map-image-picker">Elegir imagen local
+            <input id="geo-map-image-file" class="geo-map-file-input" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+          <label class="geo-map-opacity" for="geo-map-image-opacity">Opacidad del fondo
+            <input id="geo-map-image-opacity" type="range" min="0.15" max="1" step="0.05" value="0.68" />
+          </label>
+          <button id="geo-map-image-clear" type="button" class="secondary" disabled>Quitar imagen</button>
+        </div>
+        <p id="geo-map-image-message" class="geo-map-image-message" aria-live="polite">La imagen se recorta centrada para cubrir el plano cuadrado 0–1000 sin deformar las escalas X/Y.</p>
+      </div>
+      <div class="geo-map-legend" aria-label="Leyenda de prioridades">
+        <span><i class="legend-dot priority-3"></i>P3 crítica</span>
+        <span><i class="legend-dot priority-2"></i>P2 media</span>
+        <span><i class="legend-dot priority-1"></i>P1 normal</span>
+      </div>
+    </div>
+    <div class="geo-map-canvas-wrap">
+      <svg id="geo-map-canvas" role="img" aria-label="Plano cartesiano de eventos activos, coordenadas X e Y de 0 a 1000 kilómetros"></svg>
+    </div>
+    <p id="geo-map-summary" class="geo-map-summary" aria-live="polite"></p>
+    <ol id="geo-map-event-list" class="geo-map-event-list" aria-label="Eventos activos representados en el plano"></ol>
+  </section>
 </section>
