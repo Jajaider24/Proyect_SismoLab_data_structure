@@ -1,152 +1,216 @@
-## Backend
+# SismoLab AVL — Observatorio sísmico simulado
+
+Proyecto académico de estructuras de datos para gestionar eventos sísmicos ficticios mediante un árbol AVL y estudiar su comportamiento frente a un árbol BST.
+
+## Integrantes
+
+- Joaquín Hoyos Cataño
+- Jaider León Díaz
+
+## Objetivo
+
+SismoLab permite registrar, consultar, corregir, revisar, eliminar y archivar eventos de un escenario ficticio. El AVL es el índice central de eventos activos. La aplicación también permite recibir reportes mediante una cola FIFO, conservar acciones para deshacer, cargar y exportar estados JSON, comparar árboles AVL y BST y visualizar eventos en un plano cartesiano.
+
+El escenario y sus clasificaciones son académicos. No constituyen un modelo de predicción ni una evaluación real del riesgo sísmico.
+
+## Reglas principales del dominio
+
+- Identificador entero entre `1` y `999999`, único en el escenario y no reutilizable después de una eliminación.
+- Magnitud entre `-2.0` y `10.0`; profundidad entre `0.0` y `700.0` km; coordenadas `x` e `y` entre `0.0` y `1000.0` km.
+- El epicentro pertenece a una zona si está dentro de sus límites o en el borde. Si coincide con más de una zona, basta con que una sea poblada para clasificarlo como poblado.
+- La prioridad se deriva de magnitud, profundidad y zona poblada: P3 para `M >= 6.0`, o para `M >= 4.5`, `H <= 30.0` y zona poblada; P2 para el resto de `M >= 4.5`; P1 en los demás casos.
+- La clave del AVL es la tupla lexicográfica `(prioridad, magnitud, identificador)`. El recorrido inorden presenta las claves en orden ascendente.
+- El reloj del escenario se expresa en UTC y se puede avanzar desde la interfaz.
+- Los estados de atención son `pending` y `reviewed`. Una creación o corrección aceptada deja el evento pendiente.
+
+## Estructura del proyecto
+
+```text
+.
+├── main.py                         # Aplicación FastAPI y configuración CORS
+├── requirements.txt
+├── data/
+│   ├── pruebaSimple_AVL.json
+│   ├── pruebaSimple_catalogo.json
+│   └── casos_minimos/              # Seis escenarios del requerimiento 16
+├── src/
+│   ├── core/
+│   │   ├── AvlTree/                 # AVL, rotaciones, balance y auditoría de bajo nivel
+│   │   ├── node/                    # Nodo AVL y validaciones
+│   │   ├── structures/              # Pila LIFO y cola FIFO
+│   │   └── bst.py                   # BST usado en la comparación
+│   ├── models/                      # Evento, clave, zona, estación y reloj
+│   ├── controllers/                 # Adaptación de solicitudes a servicios
+│   ├── routes/                      # Rutas FastAPI para /avl y /events
+│   ├── repository/                  # Lectura de archivos JSON de entrada
+│   └── services/
+│       ├── eventCatalog_Service.py  # Coordinación del catálogo de eventos
+│       └── eventCatalog/            # Índice AVL, reportes, consultas, historial y codec
+├── UI/
+│   ├── index.html                   # Navegación y vistas principales
+│   ├── components/                  # Fragmentos HTML/CSS por componente
+│   ├── css/                         # Estilos generales y de vistas
+│   └── js/                          # API, servicios, estado, vistas y visualizaciones
+└── tests/                           # Pruebas unitarias del proyecto
+```
+
+## Arquitectura
+
+- **Estructuras:** AVL y BST implementados en el proyecto; pila explícita para undo y cola FIFO para reportes.
+- **Dominio:** `Event`, `EventKey`, `Zone`, `Station` y `SimulationClock` representan los datos del escenario.
+- **Backend:** FastAPI expone rutas; los controladores traducen solicitudes HTTP y el catálogo coordina el estado y los servicios especializados.
+- **Frontend:** las vistas se dividen en Inicio, Eventos, Reportes y Análisis. Los módulos JavaScript separan navegación, API, formularios, estado, árbol, mapa, reportes, métricas y versiones.
+- **Visualización:** D3.js dibuja los árboles y el plano geográfico. El BST se crea para comparación y no reemplaza al AVL operativo.
+
+## Instalación y ejecución local
+
+Desde la carpeta raíz del proyecto, en PowerShell:
 
 ```powershell
 python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
+venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
-`DELETE /avl/tree` para compatibilidad. El flujo de eventos usa `/events`:
+La documentación interactiva de la API queda disponible en:
 
-- `POST /events` crea un evento completo.
-- `POST /events/import-nodes` recibe una lista JSON de nodos y valida los IDs
-  antes de insertarlos uno por uno en el AVL activo. Cada objeto debe incluir
-  `id` entero único; también se aceptan `identifier` e `identificador`.
-  Los campos opcionales aceptan nombres ingleses o los equivalentes
-  `magnitud`, `profundidad_h`, `fecha_hora` y `procedencia`. Si se omiten,
-  magnitud, profundidad y coordenadas comienzan en cero, la fecha usa el reloj
-  de simulación y la procedencia queda como `IMPORTACION_JSON`. El lote se
-  registra como una única acción de undo y se rechaza completo si un ID ya
-  existe o algún nodo no es válido.
-- `GET /events/{identifier}` consulta eventos activos, archivados o eliminados.
-- `PUT /events/{identifier}` corrige un evento y genera la revision siguiente.
-- `POST /events/{identifier}/review` cambia solo el estado de atencion.
-- `DELETE /events/{identifier}` elimina individualmente y conserva el historico.
-- `POST /events/{identifier}/archive` archiva la rama seleccionada.
-- `POST /events/archive/old/preview` selecciona una rama cuyos eventos son de
-  prioridad baja y superan la antigüedad mínima (72 horas por defecto); acepta
-  `threshold_hours` para configurar el umbral. La interfaz muestra la lista,
-  el tamaño y el motivo antes de permitir confirmar el archivo.
-- `POST /events/archive/old` ejecuta el archivo confirmado usando
-  `threshold_hours` y `expected_identifiers`; si el árbol cambió desde la
-  previsualización, la operación se rechaza sin modificar el catálogo. El
-  archivo completo se deshace con una sola acción.
-- `POST /events/reports` procesa reportes por revision.
-- `POST /events/reports/import` valida una lista JSON de reportes y la agrega
-  completa al final de la cola FIFO en orden de archivo, sin procesarla. Cada
-  reporte debe tener un ID entero único dentro del archivo y cumplir las mismas
-  reglas de datos que un reporte individual; una carga inválida no encola nada.
-- `POST /events/reports/process/step` procesa exactamente un reporte FIFO.
-- `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
-- `POST /events/undo` deshace la ultima accion.
-- `GET /events/history` informa cuantas acciones quedan en la pila.
-- `GET /events/verify` comprueba orden global por K, unicidad, referencias,
-  enlaces, alturas y balance y devuelve inconsistencias por identificador.
-- `GET /events/scenario` consulta reloj, parametros, modo y metricas.
-- `PUT /events/scenario/parameters` cambia el umbral de archivo o las zonas
-  pobladas; cada cambio confirmado se registra como una accion.
-- `POST /events/clock/advance` avanza el reloj de simulacion en segundos.
-- `GET /events/export` exporta el estado operativo actual.
-- `POST /events/import` carga una exportacion y deja la carga en la pila undo.
-- `GET /events/versions`, `POST /events/versions` y
-  `POST /events/versions/{name}/restore` administran versiones nombradas.
-- `DELETE /events/versions/{name}` elimina una version guardada.
-- `GET /events/tree` entrega el AVL, metricas y valores in-order.
-- `GET /events/analysis/pending?k=5` devuelve hasta k pendientes en orden
-  descendente de `EventKey` (prioridad, magnitud, identificador).
-- `GET /events/analysis/magnitude?minimum=3&maximum=6` y
-  `GET /events/analysis/depth?maximum_depth=100&start=...&end=...` consultan
-  rangos inclusivos.
-- `GET /events/analysis/associations/{identifier}` devuelve candidatos, evento
-  de referencia, asociados activos/archivados y nodos AVL examinados.
-- `GET /events/analysis/costly-high-priority?depth_limit=2` lista eventos P3
-  más profundos que el límite y cuenta las visitas de cada búsqueda por clave.
-- `GET /events/analysis/compare` compara AVL y BST sobre las mismas claves
-  activas, en orden de catálogo, ascendente y descendente.
+- <http://127.0.0.1:8000/docs>
+- <http://127.0.0.1:8000/redoc>
 
-Las consultas informan `nodes_examined` del AVL. El top-k recorre en orden
-descendente y se detiene cuando encuentra k pendientes: por el orden inverso
-al in-order, las claves restantes no pueden desplazar esos resultados. No hay
-contadores auxiliares de pendientes por subárbol, así que antes de reunir k
-puede revisar todo el árbol (O(n)); usa una pila O(h). Magnitud y profundidad/
-fecha también son O(n), ya que no son intervalos contiguos de la clave
-compuesta; su pila ocupa O(h). En la consulta P3 se puede descartar el hijo
-izquierdo de un nodo P1/P2: prioridad es el primer componente de K. El peor
-caso para seleccionar candidatos sigue siendo O(n). Cada búsqueda de un P3
-profundo cuesta O(h), por lo que la consulta completa puede costar O(nh),
-O(n log n) con un AVL equilibrado y O(n²) en modo de estrés. Asociaciones usa
-los conjuntos del catálogo activo e histórico, examina 0 nodos AVL y recorre
-O(n) eventos para localizar quiénes incluyen la referencia; la copia temporal
-de los diccionarios también usa O(n) memoria. No existe un índice auxiliar
-direccional de referencias; el modelo actual guarda asociaciones mutuas.
-
-La comparación reconstruye AVL y BST para cada orden y conserva O(n) nodos;
-calcular altura/hojas cuesta O(n). Las búsquedas cuestan O(n log n) en AVL y
-hasta O(n²) en BST. La construcción ordenada del BST también es O(n²); la pila
-iterativa para sus métricas usa O(h) memoria. Estas métricas estructurales
-permiten ver el efecto del orden sin depender de tiempos de ejecución.
-
-## UI
-
-Con el backend ejecutandose, abre otra terminal y sirve la carpeta estatica:
+En otra terminal, inicia la interfaz estática:
 
 ```powershell
 python -m http.server 5173 --directory UI
 ```
 
-Luego visita `http://localhost:5173`. La interfaz organiza las funciones en
-vistas independientes: resumen (`#inicio`), gestión de eventos (`#eventos`),
-reportes (`#reportes`) y análisis (`#analisis`). La navegación conserva la vista
-en el hash de la URL. La UI separa API, servicio, estado, componentes y
-renderizador D3, y usa el CDN de D3.js. El catálogo mantiene un índice auxiliar
-por identificador y separa el estado activo del histórico. Las coordenadas del
-escenario son `x` e `y` en el rango `0..1000` km.
+Abre <http://localhost:5173>. La interfaz requiere que el backend esté activo en `http://localhost:8000`.
 
-## Estado, versiones manuales y deshacer
+## Vistas de la interfaz
 
-El catalogo comienza vacio en cada ejecucion: no lee ni escribe automaticamente
-`data/sismolab-state.json`. El usuario guarda versiones desde Inicio; estas se
-mantienen en memoria durante la sesion. «Exportar estado completo» descarga un
-JSON con el estado operativo, el historial undo y las versiones guardadas.
-«Cargar un estado exportado» importa el archivo solo cuando el usuario lo elige;
-la carga puede deshacerse. Las versiones se conservan al exportar e importar el
-respaldo completo.
+- **Inicio:** resumen operativo, actividad, reloj, parámetros y versiones.
+- **Eventos:** formulario de alta e importación de nodos, árbol AVL, inspector, operaciones sobre eventos y plano geográfico.
+- **Reportes:** recepción e importación de reportes, cola, procesamiento paso a paso o continuo, modo estrés, recuperación y acceso a verificación.
+- **Análisis:** consultas del catálogo y comparación gráfica AVL/BST con distintos órdenes de inserción.
 
-Cada paso FIFO genera su propia accion, incluso si el reporte se descarta; la
-pila guarda una copia aislada de los datos, cola, reloj, parametros, modo y
-enlaces izquierda/derecha del AVL. Por eso undo restaura la topologia previa en
-vez de reconstruir una forma equivalente.
+La ruta de cada vista se conserva en el fragmento de la URL, por ejemplo `#eventos` o `#analisis`.
 
-El historial usa snapshots completos para mantener sencilla la restauracion
-exacta: con `A` acciones, `E` eventos, `Q` reportes pendientes y `R` referencias
-de asociacion, el coste retenido es `O(A * (E + Q + R))`. Las copias se hacen
-antes de cada accion y contienen solo objetos del estado operativo; las
-rotaciones internas no generan snapshots. Las versiones añaden `O(V * (E + Q +
-R))` para `V` versiones guardadas. Esta representacion favorece la claridad y la
-exactitud para escenarios de simulacion de tamaño moderado; catálogos grandes
-requeririan reemplazar los snapshots completos por cambios inversos o snapshots
-con copy-on-write.
+El mapa representa `x` horizontalmente y `y` verticalmente en el intervalo `0..1000` km. El origen `(0,0)` está en la esquina inferior izquierda. La imagen de fondo local se selecciona desde el navegador y se almacena en IndexedDB; los puntos muestran eventos activos.
 
-## Auditoría e indicadores
+## API de eventos
 
-Inicio muestra eventos activos e históricos, altura (vacío -1, hoja 0), hojas,
-prioridades, pendientes, correcciones aceptadas, descartes, conflictos, archivos
-masivos y rotaciones. También expone recorridos inorden, preorden, postorden y
-por niveles. LR/RL cuentan como un caso doble y dos giros elementales. El acceso
-costoso se define como evento P3 a profundidad mayor que 2, el límite por defecto
-de la consulta de costo.
+Todas las rutas de esta sección usan el prefijo `/events`.
 
-**Verificar estructura** está en Reportes y funciona en ambos modos. Revisa los
-límites globales de K, unicidad, referencias, enlaces, alturas y balance; en modo
-estrés separa el desbalance esperado de los errores de orden o metadatos.
-`GET /events/history` explica métricas anteriores y posteriores por acción. Los
-contadores pertenecen a cada snapshot, por lo que undo y restauración recuperan
-sus valores.
+### Catálogo y operaciones
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `POST` | `/events` | Crear un evento |
+| `POST` | `/events/import-nodes` | Importar una lista de eventos por inserción |
+| `GET` | `/events/tree` | Consultar el AVL y sus métricas actuales |
+| `GET` | `/events/{identifier}` | Consultar un evento por identificador |
+| `PUT` | `/events/{identifier}` | Corregir un evento activo |
+| `POST` | `/events/{identifier}/review` | Marcar como revisado |
+| `DELETE` | `/events/{identifier}` | Eliminar individualmente |
+| `POST` | `/events/{identifier}/archive` | Archivar la rama que nace en un nodo |
+| `POST` | `/events/archive/old/preview` | Previsualizar una rama antigua elegible |
+| `POST` | `/events/archive/old` | Confirmar el archivo de la rama previsualizada |
+| `POST` | `/events/undo` | Deshacer la última acción |
+
+### Reportes y modo de ejecución
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `POST` | `/events/reports` | Encolar un reporte |
+| `POST` | `/events/reports/import` | Encolar un lote de reportes FIFO |
+| `POST` | `/events/reports/process/step` | Procesar un reporte |
+| `POST` | `/events/reports/process` | Procesar los reportes pendientes |
+| `GET` | `/events/mode` | Consultar modo y auditoría del AVL |
+| `POST` | `/events/mode` | Cambiar entre normal y estrés |
+| `POST` | `/events/recover` | Recuperar el equilibrio del AVL |
+
+### Escenario, estado y versiones
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/events/scenario` | Consultar reloj, parámetros y modo |
+| `PUT` | `/events/scenario/parameters` | Actualizar umbral de archivo o zonas |
+| `POST` | `/events/clock/advance` | Avanzar el reloj simulado |
+| `GET` | `/events/export` | Exportar el estado operativo |
+| `POST` | `/events/import` | Cargar un estado exportado |
+| `GET` | `/events/versions` | Listar versiones nombradas |
+| `POST` | `/events/versions` | Guardar una versión nombrada |
+| `POST` | `/events/versions/{name}/restore` | Restaurar una versión |
+| `DELETE` | `/events/versions/{name}` | Eliminar una versión |
+| `GET` | `/events/history` | Consultar la pila de undo y trazabilidad |
+| `GET` | `/events/verify` | Verificar la estructura y referencias |
+
+### Consultas y comparación
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/events/analysis/pending?k=5` | Pendientes en orden descendente de clave |
+| `GET` | `/events/analysis/magnitude?minimum=3&maximum=6` | Intervalo inclusivo de magnitud |
+| `GET` | `/events/analysis/depth?maximum_depth=100&start=...&end=...` | Profundidad máxima dentro de fechas |
+| `GET` | `/events/analysis/associations/{identifier}` | Consultar asociaciones del evento |
+| `GET` | `/events/analysis/costly-high-priority?depth_limit=2` | Consultar eventos P3 por profundidad estructural |
+| `GET` | `/events/analysis/compare` | Comparar AVL y BST para varios órdenes |
+
+Los parámetros y ejemplos completos de los cuerpos JSON pueden consultarse en `/docs`.
+
+## API AVL de compatibilidad
+
+El prefijo `/avl` conserva operaciones directas sobre el AVL de nodos:
+
+- `POST /avl/nodes`
+- `POST /avl/insert/{value}`
+- `PUT /avl/nodes/{identifier}`
+- `DELETE /avl/nodes/{identifier}`
+- `GET /avl/tree`
+- `DELETE /avl/tree`
+
+Estas rutas corresponden al flujo de nodos de compatibilidad. Para operar el catálogo sísmico, usa las rutas `/events`.
+
+## Carga de archivos y estado
+
+La interfaz permite elegir archivos JSON locales mediante el selector del navegador. `POST /events/import-nodes` carga una lista de eventos y mantiene el orden de inserción en el AVL. `POST /events/import` recibe un respaldo del estado operativo con topología, datos, cola y parámetros.
+
+El catálogo backend actual vive en memoria. Las versiones nombradas permanecen durante la sesión del servidor. Para conservarlas al cerrar, exporta el estado completo y vuelve a importarlo después. El módulo `src/services/eventCatalog/persistence.py` no está conectado al ciclo de vida activo del catálogo.
+
+Las acciones que registran undo guardan snapshots del estado anterior, incluyendo la topología AVL, para permitir restaurarla. El costo de snapshots completos crece con el número de acciones y el tamaño del catálogo: aproximadamente `O(A × (E + Q + R))`, donde `A` es el número de acciones, `E` los eventos, `Q` los reportes en cola y `R` las referencias de asociación. Es una representación sencilla para escenarios académicos de tamaño moderado; catálogos grandes se beneficiarían de snapshots con copy-on-write o registros de cambios inversos.
+
+## Casos mínimos del requerimiento 16
+
+Los archivos están en `data/casos_minimos/`:
+
+1. `16_1_limites_y_empates.json` — límites de prioridad, zona en el borde y desempate por identificador.
+2. `16_2_correccion_reporte_antiguo.json` — corrección con cambio de prioridad y reporte de revisión menor.
+3. `16_3_reporte_tardio.json` — eventos cercanos y procesamiento de un reporte tardío.
+4. `16_4_rotaciones_recuperacion.json` — casos LL, RR, LR, RL y recuperación en estrés.
+5. `16_5_archivo_masivo.json` — selección de rama elegible, casos sin elegibilidad y undo.
+6. `16_6_persistencia_consistencia.json` — importación de topologías y versiones, consistencia y undo.
+
+Los resultados marcados como calculados en estos archivos no son capturas de una ejecución del backend. El caso 16.6 requiere completar los objetos de evento con todos los campos obligatorios del esquema exportado antes de usarlo como archivo de importación.
 
 ## Pruebas
 
+El repositorio incluye pruebas unitarias en `tests/`. Para ejecutarlas desde la raíz:
+
 ```powershell
-venv\Scripts\python.exe -m unittest discover -s tests -v
+python -m unittest discover -s tests -v
 ```
+
+## Estado conocido del proyecto
+
+Esta sección evita presentar como terminadas funciones cuya integración todavía está pendiente:
+
+- Las rutas `/events/verify` y `/events/history` están declaradas, pero sus controladores llaman a métodos (`verify_structure` y `history_report`) que no están implementados actualmente en `EventCatalog`.
+- El cálculo de asociaciones implementado no coincide todavía con la política de magnitud, ocurrencia anterior, ventana `W` y radio `R` descrita en el documento del proyecto.
+- El catálogo devuelve actualmente un conjunto reducido de métricas; los contadores detallados de auditoría que esperan algunos componentes de Inicio aún no están conectados.
+- La profundidad estructural del nodo usa raíz `1`; el requerimiento define raíz `0`. El límite de acceso costoso no está configurado como parámetro persistente `L` del escenario.
+- La carga de estado valida parte de la topología, pero necesita validaciones adicionales de identidades globales, datos derivados y referencias de asociaciones.
+- La importación de lotes de reportes exige identificadores únicos dentro del lote. Esto impide incluir en un mismo archivo varios reportes para un mismo evento.
+
+## Licencia y uso académico
+
+Proyecto desarrollado con fines educativos para estudiar árboles AVL/BST, estructuras lineales, validación, persistencia de estado y visualización de datos.
