@@ -15,11 +15,20 @@ export function initEventForm() {
   const createLongitud = document.querySelector("#create-longitud");
   const clearButton = document.querySelector("#clear-button");
   const message = document.querySelector("#message");
+  const importForm = document.querySelector("#nodes-import-form");
+  const importFile = document.querySelector("#nodes-json-file");
+  const importMessage = document.querySelector("#nodes-import-message");
 
   function showMessage(text, isError = false) {
     if (!message) return;
     message.textContent = text;
     message.classList.toggle("error", isError);
+  }
+
+  function showImportMessage(text, isError = false) {
+    if (!importMessage) return;
+    importMessage.textContent = text;
+    importMessage.classList.toggle("error", isError);
   }
 
   function readCreateForm() {
@@ -68,6 +77,42 @@ export function initEventForm() {
     }
   });
 
+  importForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const file = importFile?.files?.[0];
+    if (!file) {
+      return showImportMessage("Selecciona un archivo JSON.", true);
+    }
+
+    setBusy(importForm, true);
+    try {
+      const contents = await file.text();
+      let nodes;
+      try {
+        nodes = JSON.parse(contents);
+      } catch {
+        throw new Error("El archivo seleccionado no contiene JSON válido.");
+      }
+      if (!Array.isArray(nodes)) {
+        throw new Error("El JSON debe contener una lista de nodos.");
+      }
+
+      const data = await treeService.importNodes(nodes);
+      store.setData(data);
+      store.addActivity("Nodos importados", `${nodes.length} nodos añadidos al AVL`);
+      showImportMessage(`${nodes.length} nodos importados correctamente.`);
+      importForm.reset();
+    } catch (error) {
+      const message = error.status
+        ? `[${error.status}] ${error.message}`
+        : error.message;
+      console.error(message);
+      showImportMessage(message, true);
+    } finally {
+      setBusy(importForm, false);
+    }
+  });
+
   clearButton?.addEventListener("click", () => {
     form?.reset();
     if (createRevision) createRevision.value = "1";
@@ -76,4 +121,3 @@ export function initEventForm() {
 
   return { showMessage, readCreateForm };
 }
-

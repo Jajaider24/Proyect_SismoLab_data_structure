@@ -11,6 +11,15 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
 `DELETE /avl/tree` para compatibilidad. El flujo de eventos usa `/events`:
 
 - `POST /events` crea un evento completo.
+- `POST /events/import-nodes` recibe una lista JSON de nodos y valida los IDs
+  antes de insertarlos uno por uno en el AVL activo. Cada objeto debe incluir
+  `id` entero único; también se aceptan `identifier` e `identificador`.
+  Los campos opcionales aceptan nombres ingleses o los equivalentes
+  `magnitud`, `profundidad_h`, `fecha_hora` y `procedencia`. Si se omiten,
+  magnitud, profundidad y coordenadas comienzan en cero, la fecha usa el reloj
+  de simulación y la procedencia queda como `IMPORTACION_JSON`. El lote se
+  registra como una única acción de undo y se rechaza completo si un ID ya
+  existe o algún nodo no es válido.
 - `GET /events/{identifier}` consulta eventos activos, archivados o eliminados.
 - `PUT /events/{identifier}` corrige un evento y genera la revision siguiente.
 - `POST /events/{identifier}/review` cambia solo el estado de atencion.
@@ -25,6 +34,10 @@ La API AVL original conserva `POST /avl/insert/{value}`, `GET /avl/tree` y
   previsualización, la operación se rechaza sin modificar el catálogo. El
   archivo completo se deshace con una sola acción.
 - `POST /events/reports` procesa reportes por revision.
+- `POST /events/reports/import` valida una lista JSON de reportes y la agrega
+  completa al final de la cola FIFO en orden de archivo, sin procesarla. Cada
+  reporte debe tener un ID entero único dentro del archivo y cumplir las mismas
+  reglas de datos que un reporte individual; una carga inválida no encola nada.
 - `POST /events/reports/process/step` procesa exactamente un reporte FIFO.
 - `POST /events/reports/process` procesa la cola FIFO de reportes pendientes.
 - `POST /events/undo` deshace la ultima accion.
@@ -91,19 +104,20 @@ renderizador D3, y usa el CDN de D3.js. El catálogo mantiene un índice auxilia
 por identificador y separa el estado activo del histórico. Las coordenadas del
 escenario son `x` e `y` en el rango `0..1000` km.
 
-## Estado persistente y deshacer
+## Estado, versiones manuales y deshacer
 
-El estado y las versiones se guardan en `data/sismolab-state.json` mediante un
-archivo temporal y reemplazo atomico. Se puede cambiar la ruta con
-`SISMOLAB_STATE_PATH`. Cada paso FIFO genera su propia accion, incluso si el
-reporte se descarta; la pila guarda una copia aislada de los datos, cola, reloj,
-parametros, modo y enlaces izquierda/derecha del AVL. Por eso undo restaura la
-topologia previa en vez de reconstruir una forma equivalente.
+El catalogo comienza vacio en cada ejecucion: no lee ni escribe automaticamente
+`data/sismolab-state.json`. El usuario guarda versiones desde Inicio; estas se
+mantienen en memoria durante la sesion. «Exportar estado completo» descarga un
+JSON con el estado operativo, el historial undo y las versiones guardadas.
+«Cargar un estado exportado» importa el archivo solo cuando el usuario lo elige;
+la carga puede deshacerse. Las versiones se conservan al exportar e importar el
+respaldo completo.
 
-Las versiones nombradas contienen el mismo estado operativo que la exportacion,
-pero no copian la pila undo ni otras versiones. Restaurar una version agrega el
-estado anterior a la pila y se puede deshacer. Exportar y cargar estan disponibles
-en Inicio.
+Cada paso FIFO genera su propia accion, incluso si el reporte se descarta; la
+pila guarda una copia aislada de los datos, cola, reloj, parametros, modo y
+enlaces izquierda/derecha del AVL. Por eso undo restaura la topologia previa en
+vez de reconstruir una forma equivalente.
 
 El historial usa snapshots completos para mantener sencilla la restauracion
 exacta: con `A` acciones, `E` eventos, `Q` reportes pendientes y `R` referencias

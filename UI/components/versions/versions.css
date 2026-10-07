@@ -9,6 +9,11 @@
 }
 .version-save-form label,
 .version-restore-form label { grid-column: 1 / -1; }
+.version-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
 .version-save-form label,
 .version-restore-form label,
 .version-file-actions label {

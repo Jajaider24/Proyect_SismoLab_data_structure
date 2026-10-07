@@ -187,6 +187,12 @@ def create_event(payload: EventPayload):
     return event_controller.create_event(payload)
 
 
+@router.post("/import-nodes", status_code=status.HTTP_201_CREATED)
+def import_json_nodes(nodes: list[dict]):
+    """Importa una lista JSON de nodos al AVL activo del catalogo."""
+    return event_controller.import_json_nodes(nodes)
+
+
 @router.get("/tree")
 def get_event_tree():
     """Consulta la jerarquia AVL de eventos activos."""
@@ -281,6 +287,12 @@ def undo_event_action():
 def process_event_report(payload: EventPayload):
     """Encola un reporte para procesarlo posteriormente."""
     return event_controller.enqueue_event_report(payload)
+
+
+@router.post("/reports/import")
+def import_json_catalog(entries: list[dict]):
+    """Importa un archivo JSON de reportes a la cola FIFO sin procesarlo."""
+    return event_controller.import_json_catalog(entries)
 
 
 @router.post("/reports/process")

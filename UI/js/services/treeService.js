@@ -4,6 +4,7 @@ export const treeService = {
   load: async () => avlApi.getTree(),
   get: async (identifier) => avlApi.get(identifier),
   create: async (event) => avlApi.create(event),
+  importNodes: async (nodes) => avlApi.importNodes(nodes),
   update: async (identifier, event) => avlApi.update(identifier, event),
   review: async (identifier) => avlApi.review(identifier),
   delete: async (identifier) => avlApi.delete(identifier),
@@ -16,6 +17,8 @@ export const treeService = {
   undo: async () => avlApi.undo(),
   getHistory: async () => avlApi.getHistory(),
   enqueueReport: async (report) => avlApi.enqueueReport(report),
+  importReportCatalog: async (reports) =>
+    avlApi.importReportCatalog(reports),
   processReports: async () => avlApi.processReports(),
   processReportStep: async () => avlApi.processReportStep(),
   getMode: async () => avlApi.getMode(),

@@ -1,0 +1,52 @@
+[
+  {
+    "id": 501,
+    "magnitud": 3.2,
+    "profundidad_h": 18.5,
+    "x": 120.0,
+    "y": 85.0,
+    "fecha_hora": "2026-10-06T22:00:00Z",
+    "procedencia": "EST-501",
+    "revision": 1
+  },
+  {
+    "id": 503,
+    "magnitud": 4.1,
+    "profundidad_h": 32.0,
+    "x": 240.0,
+    "y": 170.0,
+    "fecha_hora": "2026-10-06T21:55:00Z",
+    "procedencia": "EST-503",
+    "revision": 1
+  },
+  {
+    "id": 502,
+    "magnitud": 2.8,
+    "profundidad_h": 9.0,
+    "x": 310.0,
+    "y": 220.0,
+    "fecha_hora": "2026-10-06T21:50:00Z",
+    "procedencia": "EST-502",
+    "revision": 1
+  },
+  {
+    "id": 504,
+    "magnitud": 5.0,
+    "profundidad_h": 45.5,
+    "x": 410.0,
+    "y": 330.0,
+    "fecha_hora": "2026-10-06T21:45:00Z",
+    "procedencia": "EST-504",
+    "revision": 1
+  },
+  {
+    "id": 505,
+    "magnitud": 3.7,
+    "profundidad_h": 26.0,
+    "x": 520.0,
+    "y": 440.0,
+    "fecha_hora": "2026-10-06T21:40:00Z",
+    "procedencia": "EST-505",
+    "revision": 1
+  }
+]

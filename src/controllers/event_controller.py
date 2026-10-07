@@ -1,24 +1,19 @@
 """Controlador HTTP para el catalogo de eventos sismicos."""
 
-import os
-from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
 
+from src.models.event import AttentionState, Event
+from src.repository.catalog_repository import leer_json_catalogo
+from src.repository.node_repository import leer_json_nodos
 from src.services.eventCatalog_Service import EventCatalog
 from src.services.eventCatalog.exceptions import EventNotFound, EventValidationError
-from src.services.eventCatalog.persistence import JsonStateRepository
 from src.models.simulation_clock import SimulationClock
 
 
-state_path = Path(os.environ.get(
-    "SISMOLAB_STATE_PATH",
-    Path(__file__).resolve().parents[2] / "data" / "sismolab-state.json",
-))
 event_catalog = EventCatalog(
     clock=SimulationClock(datetime.now(timezone.utc)),
-    repository=JsonStateRepository(state_path),
 )
 
 
@@ -36,6 +31,95 @@ def create_event(payload):
         return event_catalog.response(event.identifier)
     except (EventNotFound, EventValidationError) as error:
         _handle_event_error(error)
+
+
+def _imported_event(node):
+    """Convierte los nombres del JSON de nodos al modelo de eventos activo."""
+    def value(*keys, default=None):
+        for key in keys:
+            if key in node and node[key] is not None:
+                return node[key]
+        return default
+
+    identifier = value("id", "identifier", "identificador")
+    occurred_at = value("occurred_at", "fecha_hora", default=event_catalog.now())
+    if isinstance(occurred_at, str):
+        occurred_at = datetime.fromisoformat(occurred_at.replace("Z", "+00:00"))
+    if not isinstance(occurred_at, datetime):
+        raise ValueError("fecha_hora debe ser una fecha y hora ISO 8601.")
+
+    revision = value("revision", "revision_text", default=1)
+    if isinstance(revision, str):
+        revision = int(revision[1:] if revision.lower().startswith("r") else revision)
+    if isinstance(revision, bool) or not isinstance(revision, int):
+        raise ValueError("revision debe ser un entero positivo.")
+
+    attention = value("attention")
+    if attention is None:
+        legacy_attention = value("estado_atencion", default=False)
+        if not isinstance(legacy_attention, bool):
+            raise ValueError("estado_atencion debe ser booleano.")
+        attention = (
+            AttentionState.REVIEWED
+            if legacy_attention
+            else AttentionState.PENDING
+        )
+    elif isinstance(attention, str):
+        attention = AttentionState(attention)
+    elif isinstance(attention, bool):
+        attention = (
+            AttentionState.REVIEWED if attention else AttentionState.PENDING
+        )
+    else:
+        raise ValueError("attention debe ser 'pending' o 'reviewed'.")
+
+    station = value("station", "procedencia", default="IMPORTACION_JSON")
+    if not isinstance(station, str) or not station.strip():
+        station = "IMPORTACION_JSON"
+
+    return Event(
+        identifier=identifier,
+        magnitude=float(value("magnitude", "magnitud", default=0)),
+        depth_km=float(value("depth_km", "profundidad_h", default=0)),
+        x=float(value("x", default=0)),
+        y=float(value("y", default=0)),
+        occurred_at=occurred_at,
+        station=station,
+        revision=revision,
+        attention=attention,
+    )
+
+
+def import_json_nodes(document):
+    """Valida el documento completo y delega su insercion iterativa al catalogo."""
+    try:
+        nodes = leer_json_nodos(document)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    try:
+        events = [_imported_event(node) for node in nodes]
+    except (TypeError, ValueError, OverflowError) as error:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Los datos de un nodo no son validos: {error}",
+        ) from error
+
+    for event in events:
+        try:
+            event_catalog.get(event.identifier)
+        except EventNotFound:
+            continue
+        raise HTTPException(
+            status_code=409,
+            detail=f"El identificador {event.identifier} ya existe en el catalogo.",
+        )
+
+    try:
+        event_catalog.import_events(events)
+        return event_catalog.response()
+    except EventValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 def get_event_tree():
@@ -157,6 +241,32 @@ def enqueue_event_report(payload):
         }
     except (EventNotFound, EventValidationError) as error:
         _handle_event_error(error)
+
+
+def import_json_catalog(document):
+    """Valida y encola un archivo completo de reportes conservando su orden."""
+    try:
+        entries = leer_json_catalogo(document)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    try:
+        reports = [_imported_event(entry) for entry in entries]
+        pending_reports = event_catalog.enqueue_reports(reports)
+    except (TypeError, ValueError, OverflowError) as error:
+        if isinstance(error, EventValidationError):
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        raise HTTPException(
+            status_code=422,
+            detail=f"Los datos de un reporte no son validos: {error}",
+        ) from error
+
+    return {
+        "status": "queued",
+        "imported_reports": len(reports),
+        "pending_reports": pending_reports,
+        "queue": event_catalog.pending_reports(),
+    }
 
 
 def process_pending_event_reports():

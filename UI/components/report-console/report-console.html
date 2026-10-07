@@ -93,6 +93,26 @@
       </button>
     </div>
   </form>
+  <form id="report-catalog-import-form" class="report-catalog-import">
+    <div>
+      <h3>Encolar catálogo desde JSON</h3>
+      <p>
+        Carga una lista de reportes con IDs únicos. Se agregarán al final de la
+        cola en el mismo orden del archivo y no se procesarán automáticamente.
+      </p>
+    </div>
+    <label
+      >Archivo JSON
+      <input
+        id="report-catalog-file"
+        type="file"
+        accept="application/json,.json"
+        required
+      />
+    </label>
+    <button type="submit" class="secondary">Encolar reportes</button>
+  </form>
+  <p id="report-catalog-message" class="message" aria-live="polite"></p>
   <p id="report-message" class="message" aria-live="polite"></p>
   <div class="stress-status">
     <strong id="stress-status">Modo normal</strong

@@ -46,7 +46,7 @@ export function initVersionManager({ onRequestRefresh } = {}) {
       await treeService.saveVersion(name);
       await refreshVersions(name);
       saveForm.reset();
-      showMessage("Versión guardada. Estará disponible después de reiniciar el programa.");
+      showMessage("Versión guardada en esta sesión. Exporta el estado completo para conservarla.");
       store.addActivity("Versión guardada", name);
     } catch (error) {
       showMessage(`[${error.status || 500}] ${error.message}`, true);
@@ -84,7 +84,7 @@ export function initVersionManager({ onRequestRefresh } = {}) {
       link.download = `sismolab-estado-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      showMessage("Estado operativo exportado.");
+      showMessage("Estado completo exportado, incluidas las versiones guardadas.");
     } catch (error) {
       showMessage(`[${error.status || 500}] ${error.message}`, true);
     } finally {
@@ -102,7 +102,7 @@ export function initVersionManager({ onRequestRefresh } = {}) {
       await onRequestRefresh?.();
       await refreshVersions();
       importForm.reset();
-      showMessage("Estado cargado. La carga se puede deshacer.");
+      showMessage("Estado y versiones cargados. La carga se puede deshacer.");
       store.addActivity("Estado cargado", "Archivo operativo restaurado");
     } catch (error) {
       showMessage(`[${error.status || 500}] ${error.message}`, true);

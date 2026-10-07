@@ -21,6 +21,8 @@ export const avlApi = {
   get: (identifier) => request(`/${encodeURIComponent(identifier)}`),
   create: (event) =>
     request("", { method: "POST", body: JSON.stringify(event) }),
+  importNodes: (nodes) =>
+    request("/import-nodes", { method: "POST", body: JSON.stringify(nodes) }),
   update: (identifier, event) =>
     request(`/${encodeURIComponent(identifier)}`, {
       method: "PUT",
@@ -58,6 +60,11 @@ export const avlApi = {
   getHistory: () => request("/history"),
   enqueueReport: (report) =>
     request("/reports", { method: "POST", body: JSON.stringify(report) }),
+  importReportCatalog: (reports) =>
+    request("/reports/import", {
+      method: "POST",
+      body: JSON.stringify(reports),
+    }),
   processReports: () => request("/reports/process", { method: "POST" }),
   processReportStep: () => request("/reports/process/step", { method: "POST" }),
   getMode: () => request("/mode"),

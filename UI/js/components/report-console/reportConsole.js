@@ -4,6 +4,9 @@ import { setBusy, wait } from "../../utils/dom.js";
 
 export function initReportConsole({ onRequestRefresh } = {}) {
   const reportForm = document.querySelector("#report-form");
+  const catalogImportForm = document.querySelector("#report-catalog-import-form");
+  const catalogFileInput = document.querySelector("#report-catalog-file");
+  const catalogImportMessage = document.querySelector("#report-catalog-message");
   const processReportsButton = document.querySelector("#process-reports");
   const reportMessage = document.querySelector("#report-message");
   const reportQueueCount = document.querySelector("#report-queue-count");
@@ -27,6 +30,12 @@ export function initReportConsole({ onRequestRefresh } = {}) {
     if (!reportMessage) return;
     reportMessage.textContent = text;
     reportMessage.classList.toggle("error", isError);
+  }
+
+  function showCatalogImportMessage(text, isError = false) {
+    if (!catalogImportMessage) return;
+    catalogImportMessage.textContent = text;
+    catalogImportMessage.classList.toggle("error", isError);
   }
 
   function readReportForm() {
@@ -160,6 +169,47 @@ export function initReportConsole({ onRequestRefresh } = {}) {
       showReportMessage(`[${error.status || 500}] ${error.message}`, true);
     } finally {
       setBusy(reportForm, false);
+    }
+  });
+
+  catalogImportForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!catalogImportForm.reportValidity()) return;
+    const file = catalogFileInput?.files?.[0];
+    if (!file) {
+      showCatalogImportMessage("Selecciona un archivo JSON.", true);
+      return;
+    }
+
+    setBusy(catalogImportForm, true);
+    try {
+      let reports;
+      try {
+        reports = JSON.parse(await file.text());
+      } catch {
+        throw new Error("El archivo seleccionado no contiene JSON válido.");
+      }
+      if (!Array.isArray(reports)) {
+        throw new Error("El JSON debe contener una lista de reportes.");
+      }
+
+      const result = await treeService.importReportCatalog(reports);
+      renderReportQueue(result.queue || []);
+      catalogImportForm.reset();
+      showCatalogImportMessage(
+        `${result.imported_reports} reporte(s) encolado(s) en orden de llegada.`,
+      );
+      store.addActivity(
+        "Catálogo de reportes importado",
+        `${result.imported_reports} reporte(s) añadidos a la cola`,
+      );
+    } catch (error) {
+      const message = error.status
+        ? `[${error.status}] ${error.message}`
+        : error.message;
+      showCatalogImportMessage(message, true);
+    } finally {
+      setBusy(catalogImportForm, false);
     }
   });
 
@@ -327,4 +377,3 @@ export function initReportConsole({ onRequestRefresh } = {}) {
     processOneReport,
   };
 }
-

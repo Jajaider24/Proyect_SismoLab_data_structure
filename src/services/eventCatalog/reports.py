@@ -15,6 +15,11 @@ class EventReportService:
         """Agrega un reporte a la cola pendiente de procesamiento."""
         self._pending_reports.enqueue(report)
 
+    def enqueue_many(self, reports):
+        """Agrega un lote a la cola en orden de llegada."""
+        for report in reports:
+            self._pending_reports.enqueue(report)
+
     def pending_count(self):
         """Devuelve cuantos reportes quedan pendientes."""
         return len(self._pending_reports)
@@ -71,4 +76,3 @@ class EventReportService:
         catalog._insert_active(updated, tracker)
         catalog._sync_associations()
         return {"status": "updated", "event": catalog.get(report.identifier)}
-

@@ -2,7 +2,7 @@
   <div class="panel-heading">
     <div>
       <p class="section-kicker">Puntos de restauración</p>
-      <h2 id="versions-title">Versiones persistentes</h2>
+      <h2 id="versions-title">Versiones de la sesión</h2>
     </div>
     <span id="versions-count" class="count-label">0 versiones</span>
   </div>
@@ -11,6 +11,10 @@
     <input id="version-name" name="name" type="text" maxlength="60" required placeholder="Ej. Escenario inicial" />
     <button type="submit">Guardar versión</button>
   </form>
+  <p class="version-note">
+    Las versiones se conservan durante esta sesión. Exporta el estado completo
+    para guardarlas y poder importarlas después.
+  </p>
   <div class="version-restore-form">
     <label for="version-select">Restaurar una versión guardada</label>
     <select id="version-select">
@@ -19,7 +23,7 @@
     <button id="restore-version" type="button" class="secondary" disabled>Restaurar</button>
   </div>
   <div class="version-file-actions">
-    <button id="export-state" type="button" class="secondary">Exportar estado</button>
+    <button id="export-state" type="button" class="secondary">Exportar estado completo</button>
     <form id="import-state-form">
       <label for="state-file">Cargar un estado exportado</label>
       <input id="state-file" type="file" accept="application/json,.json" required />

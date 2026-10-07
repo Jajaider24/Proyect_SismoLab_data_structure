@@ -2,8 +2,11 @@
 
 import unittest
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
+from fastapi import HTTPException
 from src.core.AvlTree.rotation_tracker import RotationTracker
+from src.controllers import event_controller
 from src.models.event import AttentionState, Event, EventState
 from src.models.simulation_clock import SimulationClock
 from src.services.eventCatalog_Service import EventCatalog
@@ -32,6 +35,101 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(self.catalog.get(1).state, EventState.DELETED)
         self.catalog.undo()
         self.assertEqual(self.catalog.get(1).state, EventState.ACTIVE)
+
+    def test_import_events_is_iterative_and_undone_as_one_action(self):
+        imported = self.catalog.import_events([
+            self.event(identifier=3),
+            self.event(identifier=1),
+            self.event(identifier=2),
+        ])
+
+        self.assertEqual([event.identifier for event in imported], [3, 1, 2])
+        self.assertEqual(self.catalog.metrics()["active"], 3)
+        self.assertEqual(self.catalog.history_count(), 1)
+        audit = self.catalog.status()["audit"]
+        self.assertTrue(audit["valid_bst"])
+        self.assertTrue(audit["valid_heights"])
+        self.assertTrue(audit["valid_depths"])
+        self.assertTrue(audit["balanced"])
+
+        self.catalog.undo()
+        self.assertEqual(self.catalog.metrics()["active"], 0)
+        self.assertEqual(self.catalog.history_count(), 0)
+
+    def test_import_events_rejects_invalid_batch_without_partial_insertion(self):
+        with self.assertRaises(EventValidationError):
+            self.catalog.import_events([
+                self.event(identifier=3),
+                self.event(identifier=3),
+            ])
+
+        self.assertEqual(self.catalog.metrics()["active"], 0)
+        self.assertEqual(self.catalog.history_count(), 0)
+
+    def test_catalog_does_not_load_or_save_automatically(self):
+        class RepositorySpy:
+            loads = 0
+            saves = 0
+
+            def load(self):
+                self.loads += 1
+                return {"schema_version": 1, "state": None, "versions": []}
+
+            def save(self, _document):
+                self.saves += 1
+
+        repository = RepositorySpy()
+        catalog = EventCatalog(repository=repository)
+
+        self.assertEqual(catalog.metrics()["active"], 0)
+        catalog.create(self.event())
+        self.assertEqual(repository.loads, 0)
+        self.assertEqual(repository.saves, 0)
+
+    def test_complete_export_import_preserves_state_history_and_versions(self):
+        self.catalog.create(self.event(identifier=1))
+        self.catalog.save_version("base")
+        self.catalog.create(self.event(identifier=2))
+        exported = self.catalog.export_state()
+
+        restored = EventCatalog()
+        restored.load_state(exported)
+
+        self.assertEqual(restored.metrics()["active"], 2)
+        self.assertEqual([version["name"] for version in restored.list_versions()], ["base"])
+        self.assertEqual(restored.history_count(), self.catalog.history_count() + 1)
+        restored.restore_version("base")
+        self.assertEqual(restored.metrics()["active"], 1)
+        self.assertIsNotNone(restored.get(1))
+
+    def test_controller_imports_json_nodes_and_rejects_duplicate_ids(self):
+        catalog = EventCatalog(clock=SimulationClock(self.when))
+        nodes = [
+            {
+                "id": 2,
+                "magnitud": 4.2,
+                "profundidad_h": 30,
+                "fecha_hora": self.when.isoformat(),
+                "procedencia": "STA-2",
+            },
+            {"id": 1, "magnitude": 3.5, "station": "STA-1"},
+        ]
+        with patch.object(event_controller, "event_catalog", catalog):
+            event_controller.import_json_nodes(nodes)
+            self.assertEqual(catalog.metrics()["active"], 2)
+            self.assertEqual(catalog.get(2).magnitude, 4.2)
+            self.assertEqual(catalog.get(1).station, "STA-1")
+            self.assertEqual(catalog.history_count(), 1)
+
+            with self.assertRaises(HTTPException) as error:
+                event_controller.import_json_nodes([{"id": 4}, {"id": 4}])
+            self.assertEqual(error.exception.status_code, 422)
+            self.assertEqual(catalog.metrics()["active"], 2)
+
+            with self.assertRaises(HTTPException) as error:
+                event_controller.import_json_nodes([{"id": 4, "fecha_hora": 123}])
+            self.assertEqual(error.exception.status_code, 422)
+            self.assertEqual(catalog.metrics()["active"], 2)
 
     def test_update_only_reinserts_when_priority_inputs_change(self):
         self.catalog.create(self.event())
@@ -307,6 +405,61 @@ class TestEventCatalog(unittest.TestCase):
         self.assertEqual(
             [item["identificador"] for item in self.catalog.pending_reports()], [10]
         )
+
+    def test_enqueue_reports_batch_preserves_fifo_and_is_one_undo_action(self):
+        self.catalog.enqueue_report(self.event(identifier=30))
+        before_actions = self.catalog.history_count()
+        count = self.catalog.enqueue_reports([
+            self.event(identifier=20, station="STA-2"),
+            self.event(identifier=10, station="STA-3"),
+        ])
+
+        self.assertEqual(count, 3)
+        self.assertEqual(
+            [item["identificador"] for item in self.catalog.pending_reports()],
+            [30, 20, 10],
+        )
+        self.assertEqual(self.catalog.history_count(), before_actions + 1)
+
+        self.catalog.undo()
+        self.assertEqual(
+            [item["identificador"] for item in self.catalog.pending_reports()],
+            [30],
+        )
+
+    def test_import_json_catalog_rejects_duplicates_and_invalid_batch_atomically(self):
+        catalog = EventCatalog(clock=SimulationClock(self.when))
+        valid_report = {
+            "id": 5,
+            "magnitud": 4.0,
+            "profundidad_h": 12.0,
+            "fecha_hora": self.when.isoformat(),
+            "procedencia": "STA-5",
+        }
+        with patch.object(event_controller, "event_catalog", catalog):
+            with self.assertRaises(HTTPException) as error:
+                event_controller.import_json_catalog([
+                    valid_report,
+                    {**valid_report},
+                ])
+            self.assertEqual(error.exception.status_code, 422)
+            self.assertEqual(catalog.pending_reports_count(), 0)
+
+            invalid_report = {**valid_report, "id": 6, "magnitud": 100}
+            with self.assertRaises(HTTPException) as error:
+                event_controller.import_json_catalog([valid_report, invalid_report])
+            self.assertEqual(error.exception.status_code, 422)
+            self.assertEqual(catalog.pending_reports_count(), 0)
+
+            result = event_controller.import_json_catalog([
+                {**valid_report, "id": 7},
+                {**valid_report, "id": 8},
+            ])
+            self.assertEqual(result["imported_reports"], 2)
+            self.assertEqual(
+                [report["identificador"] for report in result["queue"]],
+                [7, 8],
+            )
 
     def test_stress_mode_defers_rotations_and_recovery_preserves_order(self):
         self.catalog.set_stress_mode(True)

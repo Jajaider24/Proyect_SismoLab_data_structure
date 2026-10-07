@@ -119,4 +119,22 @@
     </div>
   </form>
   <p id="message" class="message" aria-live="polite"></p>
+  <section class="json-import" aria-labelledby="json-import-title">
+    <div>
+      <p class="section-kicker">Carga por lote</p>
+      <h3 id="json-import-title">Importar nodos desde JSON</h3>
+      <p class="json-import-help">
+        Selecciona un archivo con una lista de nodos. Cada nodo debe incluir un
+        identificador único en <code>id</code>.
+      </p>
+    </div>
+    <form id="nodes-import-form" class="json-import-form">
+      <label
+        >Archivo JSON
+        <input id="nodes-json-file" type="file" accept=".json,application/json" required />
+      </label>
+      <button type="submit">Importar al árbol</button>
+    </form>
+    <p id="nodes-import-message" class="message" aria-live="polite"></p>
+  </section>
 </section>
